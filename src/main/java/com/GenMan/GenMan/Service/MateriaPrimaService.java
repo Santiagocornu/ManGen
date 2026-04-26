@@ -1,9 +1,13 @@
 package com.GenMan.GenMan.Service;
 
+import com.GenMan.GenMan.DTO.MateriaPrimaDTO;
+import com.GenMan.GenMan.DTO.Relaciones.ProductoCantidadDTO;
+import com.GenMan.GenMan.DTO.TablasIntermedias.MateriaPrimaProductosDTO;
 import com.GenMan.GenMan.Entities.MateriaPrima;
 import com.GenMan.GenMan.Exceptions.BadRequestException;
-import com.GenMan.GenMan.Interface.MateriaPrimaRepository;
 import com.GenMan.GenMan.Exceptions.ResourceNotFoundException;
+import com.GenMan.GenMan.Repository.MateriaPrimaRepository;
+import com.GenMan.GenMan.Service.TablasIntermedias.MateriaPrimaProductoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,68 +17,107 @@ import java.util.List;
 public class MateriaPrimaService {
 
     private final MateriaPrimaRepository materiaPrimaRepository;
+    private final MateriaPrimaProductoService materiaPrimaProductoService;
 
     @Autowired
-    public MateriaPrimaService(MateriaPrimaRepository materiaPrimaRepository){
+    public MateriaPrimaService(
+            MateriaPrimaRepository materiaPrimaRepository,
+            MateriaPrimaProductoService materiaPrimaProductoService
+    ) {
         this.materiaPrimaRepository = materiaPrimaRepository;
+        this.materiaPrimaProductoService = materiaPrimaProductoService;
     }
 
-    public List<MateriaPrima> findAll() {
-        return materiaPrimaRepository.findAll();
+    public List<MateriaPrimaDTO> findAll() {
+        return materiaPrimaRepository.findAll()
+                .stream()
+                .map(this::toDto)
+                .toList();
     }
 
-    public MateriaPrima findById(Long id) {
-        return materiaPrimaRepository.findById(id).orElseThrow(() ->
-                new ResourceNotFoundException("Materia prima no encontrado con código: " + id));
+    public MateriaPrimaDTO findById(Long id) {
+        return materiaPrimaRepository.findById(id)
+                .map(this::toDto)
+                .orElseThrow(() -> new ResourceNotFoundException("Materia prima no encontrada con codigo: " + id));
     }
 
-    public MateriaPrima save(MateriaPrima materiaPrima) {
-        if(materiaPrima.getPrecio()==null){
-            throw  new BadRequestException("Debe tener precio");
-        }
-        if(materiaPrima.getPrecio()<0){
-            throw new BadRequestException("El precio debe ser mayor a 0");
-        }
-        if(materiaPrima.getCantidad()==null){
-            throw new BadRequestException("La cantidad no puede ser nula");
-        }
-        if(materiaPrima.getUnidad()==null || materiaPrima.getUnidad().trim().isEmpty()){
-            throw new BadRequestException("La unidad no puede ser nula");
-        }
-        return materiaPrimaRepository.save(materiaPrima);
+    public MateriaPrimaDTO save(MateriaPrimaDTO materiaPrimaDTO) {
+        validate(materiaPrimaDTO);
+        MateriaPrima materiaPrima = toEntity(materiaPrimaDTO);
+        return toDto(materiaPrimaRepository.save(materiaPrima));
     }
 
-    public MateriaPrima update(Long id,MateriaPrima nuevaMateriaPrima){
+    public MateriaPrimaDTO update(Long id, MateriaPrimaDTO materiaPrimaDTO) {
+        validate(materiaPrimaDTO);
+
         MateriaPrima materiaPrimaExistente = materiaPrimaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "No se encontro materia prima con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro materia prima con id: " + id));
 
-        if(nuevaMateriaPrima.getPrecio()==null){
-            throw new BadRequestException("Debe tener precio");
-        }
-        if(nuevaMateriaPrima.getPrecio()<0){
-            throw new BadRequestException("El precio debe ser mayor a 0");
-        }
-        if(nuevaMateriaPrima.getCantidad()==null){
-            throw new BadRequestException("La cantidad no puede ser nula");
-        }
-        if(nuevaMateriaPrima.getUnidad()==null || nuevaMateriaPrima.getUnidad().trim().isEmpty()){
-            throw new BadRequestException("La unidad no puede ser nula");
-        }
+        materiaPrimaExistente.setAsset(materiaPrimaDTO.getAsset());
+        materiaPrimaExistente.setNombre(materiaPrimaDTO.getNombre());
+        materiaPrimaExistente.setPrecio(materiaPrimaDTO.getPrecio());
+        materiaPrimaExistente.setCantidad(materiaPrimaDTO.getCantidad());
+        materiaPrimaExistente.setUnidad(materiaPrimaDTO.getUnidad());
 
-        materiaPrimaExistente.setAsset(nuevaMateriaPrima.getAsset());
-        materiaPrimaExistente.setNombre(nuevaMateriaPrima.getNombre());
-        materiaPrimaExistente.setPrecio(nuevaMateriaPrima.getPrecio());
-        materiaPrimaExistente.setCantidad(nuevaMateriaPrima.getCantidad());
-        materiaPrimaExistente.setUnidad(nuevaMateriaPrima.getUnidad());
-
-        return materiaPrimaRepository.save(materiaPrimaExistente);
+        return toDto(materiaPrimaRepository.save(materiaPrimaExistente));
     }
 
     public void deleteById(Long id) {
-        if (!materiaPrimaRepository.existsById(id)){
-            throw new ResourceNotFoundException("No se mudo eliminar. Materia prima no ecnontrada con codigo: " + id);
+        if (!materiaPrimaRepository.existsById(id)) {
+            throw new ResourceNotFoundException("No se pudo eliminar. Materia prima no encontrada con codigo: " + id);
         }
         materiaPrimaRepository.deleteById(id);
+    }
+
+    public List<ProductoCantidadDTO> getProductos(Long materiaPrimaId) {
+        return materiaPrimaProductoService.obtenerProductosPorMateriaPrima(materiaPrimaId);
+    }
+
+    public MateriaPrimaProductosDTO saveOrUpdateProducto(Long materiaPrimaId, Long productoId, Integer cantidad) {
+        return materiaPrimaProductoService.crearOActualizar(materiaPrimaId, productoId, cantidad);
+    }
+
+    public MateriaPrimaProductosDTO cambiarCantidadProducto(Long materiaPrimaId, Long productoId, Integer cantidad) {
+        return materiaPrimaProductoService.cambiarCantidad(materiaPrimaId, productoId, cantidad);
+    }
+
+    private void validate(MateriaPrimaDTO materiaPrimaDTO) {
+        if (materiaPrimaDTO.getPrecio() == null) {
+            throw new BadRequestException("Debe tener precio");
+        }
+        if (materiaPrimaDTO.getPrecio() < 0) {
+            throw new BadRequestException("El precio debe ser mayor o igual a 0");
+        }
+        if (materiaPrimaDTO.getCantidad() == null) {
+            throw new BadRequestException("La cantidad no puede ser nula");
+        }
+        if (materiaPrimaDTO.getCantidad() < 0) {
+            throw new BadRequestException("La cantidad debe ser mayor o igual a 0");
+        }
+        if (materiaPrimaDTO.getUnidad() == null || materiaPrimaDTO.getUnidad().trim().isEmpty()) {
+            throw new BadRequestException("La unidad no puede ser nula");
+        }
+    }
+
+    private MateriaPrimaDTO toDto(MateriaPrima materiaPrima) {
+        return new MateriaPrimaDTO(
+                materiaPrima.getId(),
+                materiaPrima.getAsset(),
+                materiaPrima.getNombre(),
+                materiaPrima.getPrecio(),
+                materiaPrima.getUnidad(),
+                materiaPrima.getCantidad()
+        );
+    }
+
+    private MateriaPrima toEntity(MateriaPrimaDTO materiaPrimaDTO) {
+        MateriaPrima materiaPrima = new MateriaPrima();
+        materiaPrima.setId(materiaPrimaDTO.getId());
+        materiaPrima.setAsset(materiaPrimaDTO.getAsset());
+        materiaPrima.setNombre(materiaPrimaDTO.getNombre());
+        materiaPrima.setPrecio(materiaPrimaDTO.getPrecio());
+        materiaPrima.setUnidad(materiaPrimaDTO.getUnidad());
+        materiaPrima.setCantidad(materiaPrimaDTO.getCantidad());
+        return materiaPrima;
     }
 }

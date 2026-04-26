@@ -1,10 +1,13 @@
 package com.GenMan.GenMan.Entities;
 
 
+import com.GenMan.GenMan.Entities.TablasIntermedias.Producto_Venta;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.text.DateFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "Ventas")
@@ -30,4 +33,9 @@ public class Ventas {
 
     @Column
     DateFormat Fecha;
+
+    @OneToMany(mappedBy = "venta", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<Producto_Venta> productos = new ArrayList<>();
 }

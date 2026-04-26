@@ -1,4 +1,4 @@
-package com.GenMan.GenMan.Interface;
+package com.GenMan.GenMan.Repository;
 
 import com.GenMan.GenMan.Entities.Pedidos;
 import org.springframework.data.jpa.repository.JpaRepository;

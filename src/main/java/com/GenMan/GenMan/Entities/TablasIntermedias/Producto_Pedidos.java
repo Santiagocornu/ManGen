@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.io.Serializable;
 
@@ -21,11 +23,13 @@ public class Producto_Pedidos{
     @jakarta.persistence.Id
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Pedidos_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Pedidos pedidos;
 
     @jakarta.persistence.Id
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "producto_id", nullable = false)
+    @JoinColumn(name = "Producto_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Producto producto;
 
     @Column(nullable = false)
@@ -37,7 +41,7 @@ public class Producto_Pedidos{
     @AllArgsConstructor
     @EqualsAndHashCode
     public static class Id implements Serializable {
-        private Long Pedidos;
+        private Long pedidos;
         private Long producto;
     }
 }

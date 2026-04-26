@@ -1,6 +1,9 @@
 package com.GenMan.GenMan.Controller;
 
-import com.GenMan.GenMan.Entities.MateriaPrima;
+import com.GenMan.GenMan.DTO.MateriaPrimaDTO;
+import com.GenMan.GenMan.DTO.Relaciones.AsignarProductoDTO;
+import com.GenMan.GenMan.DTO.Relaciones.ProductoCantidadDTO;
+import com.GenMan.GenMan.DTO.TablasIntermedias.MateriaPrimaProductosDTO;
 import com.GenMan.GenMan.Service.MateriaPrimaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -20,25 +23,25 @@ public class MateriaPrimaController {
     }
 
     @GetMapping
-    public ResponseEntity<List<MateriaPrima>> getAllMateriaPrima(){
+    public ResponseEntity<List<MateriaPrimaDTO>> getAllMateriaPrima(){
         return ResponseEntity.ok(materiaPrimaService.findAll());
     }
 
     @PostMapping
-    public ResponseEntity<MateriaPrima> createMateriaPrima(@Valid @RequestBody MateriaPrima materiaPrima) {
+    public ResponseEntity<MateriaPrimaDTO> createMateriaPrima(@Valid @RequestBody MateriaPrimaDTO materiaPrima) {
         return ResponseEntity.status(HttpStatus.CREATED).body(materiaPrimaService.save(materiaPrima));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MateriaPrima> getMateriaPrimaById(@PathVariable Long id) {
-        MateriaPrima mp = materiaPrimaService.findById(id);
+    public ResponseEntity<MateriaPrimaDTO> getMateriaPrimaById(@PathVariable Long id) {
+        MateriaPrimaDTO mp = materiaPrimaService.findById(id);
         return ResponseEntity.ok(mp);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<MateriaPrima> updateMateriaPrima(
+    public ResponseEntity<MateriaPrimaDTO> updateMateriaPrima(
             @PathVariable Long id,
-            @RequestBody MateriaPrima materiaPrima
+            @Valid @RequestBody MateriaPrimaDTO materiaPrima
     ){
         return ResponseEntity.ok(materiaPrimaService.update(id,materiaPrima));
     }
@@ -47,5 +50,28 @@ public class MateriaPrimaController {
     public ResponseEntity<Void> deleteMateriaPrimaById(@PathVariable Long id){
         materiaPrimaService.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/productos")
+    public ResponseEntity<List<ProductoCantidadDTO>> getProductosByMateriaPrima(@PathVariable Long id) {
+        return ResponseEntity.ok(materiaPrimaService.getProductos(id));
+    }
+
+    @PostMapping("/{id}/productos")
+    public ResponseEntity<MateriaPrimaProductosDTO> addProductoToMateriaPrima(
+            @PathVariable Long id,
+            @RequestBody AsignarProductoDTO asignarProductoDTO
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(materiaPrimaService.saveOrUpdateProducto(id, asignarProductoDTO.getProductoId(), asignarProductoDTO.getCantidad()));
+    }
+
+    @PatchMapping("/{id}/productos/{productoId}/cantidad")
+    public ResponseEntity<MateriaPrimaProductosDTO> cambiarCantidadProducto(
+            @PathVariable Long id,
+            @PathVariable Long productoId,
+            @RequestBody AsignarProductoDTO asignarProductoDTO
+    ) {
+        return ResponseEntity.ok(materiaPrimaService.cambiarCantidadProducto(id, productoId, asignarProductoDTO.getCantidad()));
     }
 }

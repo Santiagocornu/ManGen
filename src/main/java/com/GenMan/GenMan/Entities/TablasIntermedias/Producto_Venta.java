@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.io.Serializable;
 @Entity
@@ -20,11 +22,13 @@ public class Producto_Venta {
     @jakarta.persistence.Id
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Venta_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Ventas venta;
 
     @jakarta.persistence.Id
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "producto_id", nullable = false)
+    @JoinColumn(name = "Producto_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Producto producto;
 
     @Column(nullable = false)
