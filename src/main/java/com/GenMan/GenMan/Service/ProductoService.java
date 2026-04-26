@@ -4,9 +4,12 @@ import com.GenMan.GenMan.DTO.ProductoDTO;
 import com.GenMan.GenMan.DTO.Relaciones.MateriaPrimaCantidadDTO;
 import com.GenMan.GenMan.DTO.TablasIntermedias.MateriaPrimaProductosDTO;
 import com.GenMan.GenMan.Entities.Producto;
+import com.GenMan.GenMan.Entities.Sucursal;
 import com.GenMan.GenMan.Exceptions.BadRequestException;
 import com.GenMan.GenMan.Exceptions.ResourceNotFoundException;
 import com.GenMan.GenMan.Repository.ProductoRepository;
+import com.GenMan.GenMan.Repository.SucursalRepository;
+import com.GenMan.GenMan.Security.SucursalContext;
 import com.GenMan.GenMan.Service.TablasIntermedias.MateriaPrimaProductoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,26 +20,29 @@ import java.util.List;
 public class ProductoService {
 
     private final ProductoRepository productoRepository;
+    private final SucursalRepository sucursalRepository;
     private final MateriaPrimaProductoService materiaPrimaProductoService;
 
     @Autowired
     public ProductoService(
             ProductoRepository productoRepository,
+            SucursalRepository sucursalRepository,
             MateriaPrimaProductoService materiaPrimaProductoService
     ) {
         this.productoRepository = productoRepository;
+        this.sucursalRepository = sucursalRepository;
         this.materiaPrimaProductoService = materiaPrimaProductoService;
     }
 
     public List<ProductoDTO> findAll() {
-        return productoRepository.findAll()
+        return productoRepository.findAllBySucursal_Id(currentSucursalId())
                 .stream()
                 .map(this::toDto)
                 .toList();
     }
 
     public ProductoDTO findById(Long id) {
-        return productoRepository.findById(id)
+        return productoRepository.findByIdAndSucursal_Id(id, currentSucursalId())
                 .map(this::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con codigo: " + id));
     }
@@ -44,13 +50,14 @@ public class ProductoService {
     public ProductoDTO save(ProductoDTO productoDTO) {
         validate(productoDTO);
         Producto producto = toEntity(productoDTO);
+        producto.setSucursal(currentSucursal());
         return toDto(productoRepository.save(producto));
     }
 
     public ProductoDTO update(Long id, ProductoDTO productoDTO) {
         validate(productoDTO);
 
-        Producto productoExistente = productoRepository.findById(id)
+        Producto productoExistente = productoRepository.findByIdAndSucursal_Id(id, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro producto con id: " + id));
 
         productoExistente.setAsset(productoDTO.getAsset());
@@ -63,7 +70,7 @@ public class ProductoService {
     }
 
     public void deleteById(Long id) {
-        if (!productoRepository.existsById(id)) {
+        if (!productoRepository.existsByIdAndSucursal_Id(id, currentSucursalId())) {
             throw new ResourceNotFoundException("No se pudo eliminar. Producto no encontrado con codigo: " + id);
         }
         productoRepository.deleteById(id);
@@ -116,5 +123,19 @@ public class ProductoService {
         producto.setCantidad(productoDTO.getCantidad());
         producto.setUnidad(productoDTO.getUnidad());
         return producto;
+    }
+
+    private Long currentSucursalId() {
+        Long sucursalId = SucursalContext.get();
+        if (sucursalId == null) {
+            throw new BadRequestException("No se pudo resolver la sucursal actual");
+        }
+        return sucursalId;
+    }
+
+    private Sucursal currentSucursal() {
+        Long sucursalId = currentSucursalId();
+        return sucursalRepository.findById(sucursalId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + sucursalId));
     }
 }

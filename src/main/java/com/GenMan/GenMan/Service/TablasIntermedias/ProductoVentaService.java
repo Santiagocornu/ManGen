@@ -2,8 +2,8 @@ package com.GenMan.GenMan.Service.TablasIntermedias;
 
 import com.GenMan.GenMan.DTO.Relaciones.ProductoCantidadDTO;
 import com.GenMan.GenMan.DTO.TablasIntermedias.ProductoVentaDTO;
-import com.GenMan.GenMan.Entities.TablasIntermedias.MateriaPrima_Productos;
 import com.GenMan.GenMan.Entities.Producto;
+import com.GenMan.GenMan.Entities.TablasIntermedias.MateriaPrima_Productos;
 import com.GenMan.GenMan.Entities.TablasIntermedias.Producto_Venta;
 import com.GenMan.GenMan.Entities.Ventas;
 import com.GenMan.GenMan.Exceptions.BadRequestException;
@@ -12,6 +12,7 @@ import com.GenMan.GenMan.Repository.ProductoRepository;
 import com.GenMan.GenMan.Repository.TablasIntermedias.MateriaPrima_ProductoRepository;
 import com.GenMan.GenMan.Repository.TablasIntermedias.Producto_VentaRepository;
 import com.GenMan.GenMan.Repository.VentasRepository;
+import com.GenMan.GenMan.Security.SucursalContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,10 +41,10 @@ public class ProductoVentaService {
     public ProductoVentaDTO crearOActualizar(Long ventaId, Long productoId, Integer cantidad) {
         validateCantidad(cantidad);
 
-        Ventas venta = ventasRepository.findById(ventaId)
+        Ventas venta = ventasRepository.findByIdAndSucursal_Id(ventaId, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Venta no encontrada con id: " + ventaId));
 
-        Producto producto = productoRepository.findById(productoId)
+        Producto producto = productoRepository.findByIdAndSucursal_Id(productoId, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id: " + productoId));
 
         Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
@@ -57,10 +58,10 @@ public class ProductoVentaService {
     public ProductoVentaDTO crearOActualizarConStock(Long ventaId, Long productoId, Integer cantidad) {
         validateCantidad(cantidad);
 
-        Ventas venta = ventasRepository.findById(ventaId)
+        Ventas venta = ventasRepository.findByIdAndSucursal_Id(ventaId, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Venta no encontrada con id: " + ventaId));
 
-        Producto producto = productoRepository.findById(productoId)
+        Producto producto = productoRepository.findByIdAndSucursal_Id(productoId, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id: " + productoId));
 
         Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
@@ -74,6 +75,8 @@ public class ProductoVentaService {
         if (relacion == null) {
             relacion = new Producto_Venta(venta, producto, cantidad);
         } else {
+            validateSameSucursal(relacion.getVenta().getSucursal() == null ? null : relacion.getVenta().getSucursal().getId());
+            validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
             relacion.setCantidad(cantidad);
         }
 
@@ -87,6 +90,9 @@ public class ProductoVentaService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe relacion entre venta " + ventaId + " y producto " + productoId));
 
+        validateSameSucursal(relacion.getVenta().getSucursal() == null ? null : relacion.getVenta().getSucursal().getId());
+        validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+
         relacion.setCantidad(cantidad);
         return toDto(productoVentaRepository.save(relacion));
     }
@@ -98,6 +104,9 @@ public class ProductoVentaService {
         Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe relacion entre venta " + ventaId + " y producto " + productoId));
+
+        validateSameSucursal(relacion.getVenta().getSucursal() == null ? null : relacion.getVenta().getSucursal().getId());
+        validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
 
         int diferencia = cantidad - relacion.getCantidad();
 
@@ -112,6 +121,9 @@ public class ProductoVentaService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe relacion entre venta " + ventaId + " y producto " + productoId));
 
+        validateSameSucursal(relacion.getVenta().getSucursal() == null ? null : relacion.getVenta().getSucursal().getId());
+        validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+
         productoVentaRepository.delete(relacion);
     }
 
@@ -121,12 +133,15 @@ public class ProductoVentaService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe relacion entre venta " + ventaId + " y producto " + productoId));
 
+        validateSameSucursal(relacion.getVenta().getSucursal() == null ? null : relacion.getVenta().getSucursal().getId());
+        validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+
         ajustarStock(relacion.getProducto(), -relacion.getCantidad());
         productoVentaRepository.delete(relacion);
     }
 
     public List<ProductoCantidadDTO> obtenerProductosPorVenta(Long ventaId) {
-        if (!ventasRepository.existsById(ventaId)) {
+        if (!ventasRepository.existsByIdAndSucursal_Id(ventaId, currentSucursalId())) {
             throw new ResourceNotFoundException("Venta no encontrada con id: " + ventaId);
         }
 
@@ -197,6 +212,20 @@ public class ProductoVentaService {
         }
         if (cantidad < 0) {
             throw new BadRequestException("La cantidad debe ser mayor o igual a 0");
+        }
+    }
+
+    private Long currentSucursalId() {
+        Long sucursalId = SucursalContext.get();
+        if (sucursalId == null) {
+            throw new BadRequestException("No se pudo resolver la sucursal actual");
+        }
+        return sucursalId;
+    }
+
+    private void validateSameSucursal(Long sucursalId) {
+        if (sucursalId == null || !sucursalId.equals(currentSucursalId())) {
+            throw new ResourceNotFoundException("La relacion no pertenece a la sucursal actual");
         }
     }
 

@@ -4,13 +4,16 @@ import com.GenMan.GenMan.DTO.VentasDTO;
 import com.GenMan.GenMan.DTO.Relaciones.ProductoCantidadDTO;
 import com.GenMan.GenMan.DTO.TablasIntermedias.ProductoVentaDTO;
 import com.GenMan.GenMan.Entities.Pedidos;
+import com.GenMan.GenMan.Entities.Sucursal;
 import com.GenMan.GenMan.Entities.TablasIntermedias.Producto_Pedidos;
 import com.GenMan.GenMan.Entities.Ventas;
 import com.GenMan.GenMan.Exceptions.BadRequestException;
 import com.GenMan.GenMan.Exceptions.ResourceNotFoundException;
 import com.GenMan.GenMan.Repository.PedidosRepository;
+import com.GenMan.GenMan.Repository.SucursalRepository;
 import com.GenMan.GenMan.Repository.TablasIntermedias.Producto_PedidosRepository;
 import com.GenMan.GenMan.Repository.VentasRepository;
+import com.GenMan.GenMan.Security.SucursalContext;
 import com.GenMan.GenMan.Service.TablasIntermedias.ProductoVentaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,7 @@ public class VentasService {
 
     private final VentasRepository ventasRepository;
     private final PedidosRepository pedidosRepository;
+    private final SucursalRepository sucursalRepository;
     private final Producto_PedidosRepository productoPedidosRepository;
     private final ProductoVentaService productoVentaService;
 
@@ -30,24 +34,26 @@ public class VentasService {
     public VentasService(
             VentasRepository ventasRepository,
             PedidosRepository pedidosRepository,
+            SucursalRepository sucursalRepository,
             Producto_PedidosRepository productoPedidosRepository,
             ProductoVentaService productoVentaService
     ) {
         this.ventasRepository = ventasRepository;
         this.pedidosRepository = pedidosRepository;
+        this.sucursalRepository = sucursalRepository;
         this.productoPedidosRepository = productoPedidosRepository;
         this.productoVentaService = productoVentaService;
     }
 
     public List<VentasDTO> findAll() {
-        return ventasRepository.findAll()
+        return ventasRepository.findAllBySucursal_Id(currentSucursalId())
                 .stream()
                 .map(this::toDto)
                 .toList();
     }
 
     public VentasDTO findById(Long id) {
-        return ventasRepository.findById(id)
+        return ventasRepository.findByIdAndSucursal_Id(id, currentSucursalId())
                 .map(this::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Venta no encontrada con codigo: " + id));
     }
@@ -55,13 +61,14 @@ public class VentasService {
     public VentasDTO save(VentasDTO ventasDTO) {
         validate(ventasDTO);
         Ventas venta = toEntity(ventasDTO);
+        venta.setSucursal(currentSucursal());
         return toDto(ventasRepository.save(venta));
     }
 
     public VentasDTO update(Long id, VentasDTO ventasDTO) {
         validate(ventasDTO);
 
-        Ventas ventaExistente = ventasRepository.findById(id)
+        Ventas ventaExistente = ventasRepository.findByIdAndSucursal_Id(id, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro venta con id: " + id));
 
         ventaExistente.setTotal(ventasDTO.getTotal());
@@ -73,7 +80,7 @@ public class VentasService {
     }
 
     public void deleteById(Long id) {
-        if (!ventasRepository.existsById(id)) {
+        if (!ventasRepository.existsByIdAndSucursal_Id(id, currentSucursalId())) {
             throw new ResourceNotFoundException("No se pudo eliminar. Venta no encontrada con codigo: " + id);
         }
         ventasRepository.deleteById(id);
@@ -118,7 +125,7 @@ public class VentasService {
     }
 
     private VentasDTO crearDesdePedido(Long pedidoId, boolean ajustarStock) {
-        Pedidos pedido = pedidosRepository.findById(pedidoId)
+        Pedidos pedido = pedidosRepository.findByIdAndSucursal_Id(pedidoId, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id: " + pedidoId));
 
         Ventas venta = new Ventas();
@@ -126,6 +133,7 @@ public class VentasService {
         venta.setTotalDesc(pedido.getTotalDesc() == null ? 0D : pedido.getTotalDesc());
         venta.setMetodoPago(null);
         venta.setFecha(null);
+        venta.setSucursal(currentSucursal());
 
         Ventas ventaGuardada = ventasRepository.save(venta);
 
@@ -182,5 +190,19 @@ public class VentasService {
         ventas.setMetodoPago(ventasDTO.getMetodoPago());
         ventas.setFecha(ventasDTO.getFecha());
         return ventas;
+    }
+
+    private Long currentSucursalId() {
+        Long sucursalId = SucursalContext.get();
+        if (sucursalId == null) {
+            throw new BadRequestException("No se pudo resolver la sucursal actual");
+        }
+        return sucursalId;
+    }
+
+    private Sucursal currentSucursal() {
+        Long sucursalId = currentSucursalId();
+        return sucursalRepository.findById(sucursalId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + sucursalId));
     }
 }

@@ -33,6 +33,10 @@ public class Pedidos {
     @Column
     String Estado;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sucursal_id")
+    private Sucursal sucursal;
+
     @OneToMany(mappedBy = "pedidos", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

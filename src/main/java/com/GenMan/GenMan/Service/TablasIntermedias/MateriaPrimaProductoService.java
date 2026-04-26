@@ -11,6 +11,7 @@ import com.GenMan.GenMan.Exceptions.ResourceNotFoundException;
 import com.GenMan.GenMan.Repository.MateriaPrimaRepository;
 import com.GenMan.GenMan.Repository.ProductoRepository;
 import com.GenMan.GenMan.Repository.TablasIntermedias.MateriaPrima_ProductoRepository;
+import com.GenMan.GenMan.Security.SucursalContext;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -35,10 +36,10 @@ public class MateriaPrimaProductoService {
     public MateriaPrimaProductosDTO crearOActualizar(Long materiaPrimaId, Long productoId, Integer cantidad) {
         validateCantidad(cantidad);
 
-        MateriaPrima materiaPrima = materiaPrimaRepository.findById(materiaPrimaId)
+        MateriaPrima materiaPrima = materiaPrimaRepository.findByIdAndSucursal_Id(materiaPrimaId, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Materia prima no encontrada con id: " + materiaPrimaId));
 
-        Producto producto = productoRepository.findById(productoId)
+        Producto producto = productoRepository.findByIdAndSucursal_Id(productoId, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id: " + productoId));
 
         MateriaPrima_Productos relacion = materiaPrimaProductoRepository
@@ -57,12 +58,15 @@ public class MateriaPrimaProductoService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe relacion entre materia prima " + materiaPrimaId + " y producto " + productoId));
 
+        validateSameSucursal(relacion.getMateriaPrima().getSucursal() == null ? null : relacion.getMateriaPrima().getSucursal().getId());
+        validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+
         relacion.setCantidad(cantidad);
         return toDto(materiaPrimaProductoRepository.save(relacion));
     }
 
     public List<ProductoCantidadDTO> obtenerProductosPorMateriaPrima(Long materiaPrimaId) {
-        if (!materiaPrimaRepository.existsById(materiaPrimaId)) {
+        if (!materiaPrimaRepository.existsByIdAndSucursal_Id(materiaPrimaId, currentSucursalId())) {
             throw new ResourceNotFoundException("Materia prima no encontrada con id: " + materiaPrimaId);
         }
 
@@ -81,7 +85,7 @@ public class MateriaPrimaProductoService {
     }
 
     public List<MateriaPrimaCantidadDTO> obtenerMateriasPrimasPorProducto(Long productoId) {
-        if (!productoRepository.existsById(productoId)) {
+        if (!productoRepository.existsByIdAndSucursal_Id(productoId, currentSucursalId())) {
             throw new ResourceNotFoundException("Producto no encontrado con id: " + productoId);
         }
 
@@ -105,6 +109,20 @@ public class MateriaPrimaProductoService {
         }
         if (cantidad < 0) {
             throw new BadRequestException("La cantidad debe ser mayor o igual a 0");
+        }
+    }
+
+    private Long currentSucursalId() {
+        Long sucursalId = SucursalContext.get();
+        if (sucursalId == null) {
+            throw new BadRequestException("No se pudo resolver la sucursal actual");
+        }
+        return sucursalId;
+    }
+
+    private void validateSameSucursal(Long sucursalId) {
+        if (sucursalId == null || !sucursalId.equals(currentSucursalId())) {
+            throw new ResourceNotFoundException("La relacion no pertenece a la sucursal actual");
         }
     }
 
