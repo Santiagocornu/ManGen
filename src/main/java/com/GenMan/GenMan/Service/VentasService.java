@@ -87,12 +87,37 @@ public class VentasService {
         return productoVentaService.crearOActualizar(ventaId, productoId, cantidad);
     }
 
+    public ProductoVentaDTO saveOrUpdateProductoConStock(Long ventaId, Long productoId, Integer cantidad) {
+        return productoVentaService.crearOActualizarConStock(ventaId, productoId, cantidad);
+    }
+
     public ProductoVentaDTO cambiarCantidadProducto(Long ventaId, Long productoId, Integer cantidad) {
         return productoVentaService.cambiarCantidad(ventaId, productoId, cantidad);
     }
 
+    public ProductoVentaDTO cambiarCantidadProductoConStock(Long ventaId, Long productoId, Integer cantidad) {
+        return productoVentaService.cambiarCantidadConStock(ventaId, productoId, cantidad);
+    }
+
+    public void eliminarProducto(Long ventaId, Long productoId) {
+        productoVentaService.eliminarProductoDeVenta(ventaId, productoId);
+    }
+
+    public void eliminarProductoConStock(Long ventaId, Long productoId) {
+        productoVentaService.eliminarProductoDeVentaConStock(ventaId, productoId);
+    }
+
     @Transactional
     public VentasDTO crearDesdePedido(Long pedidoId) {
+        return crearDesdePedido(pedidoId, false);
+    }
+
+    @Transactional
+    public VentasDTO crearDesdePedidoConStock(Long pedidoId) {
+        return crearDesdePedido(pedidoId, true);
+    }
+
+    private VentasDTO crearDesdePedido(Long pedidoId, boolean ajustarStock) {
         Pedidos pedido = pedidosRepository.findById(pedidoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id: " + pedidoId));
 
@@ -106,11 +131,19 @@ public class VentasService {
 
         List<Producto_Pedidos> productosDelPedido = productoPedidosRepository.findAllByPedidos_Id(pedidoId);
         for (Producto_Pedidos relacion : productosDelPedido) {
-            productoVentaService.crearOActualizar(
-                    ventaGuardada.getId(),
-                    relacion.getProducto().getId(),
-                    relacion.getCantidad()
-            );
+            if (ajustarStock) {
+                productoVentaService.crearOActualizarConStock(
+                        ventaGuardada.getId(),
+                        relacion.getProducto().getId(),
+                        relacion.getCantidad()
+                );
+            } else {
+                productoVentaService.crearOActualizar(
+                        ventaGuardada.getId(),
+                        relacion.getProducto().getId(),
+                        relacion.getCantidad()
+                );
+            }
         }
 
         pedido.setEstado("Terminado");

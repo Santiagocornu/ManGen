@@ -37,6 +37,11 @@ public class VentasController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ventasService.crearDesdePedido(pedidoId));
     }
 
+    @PostMapping("/desde-pedido/{pedidoId}/con-stock")
+    public ResponseEntity<VentasDTO> createVentaFromPedidoConStock(@PathVariable Long pedidoId) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ventasService.crearDesdePedidoConStock(pedidoId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<VentasDTO> getVentaById(@PathVariable Long id) {
         return ResponseEntity.ok(ventasService.findById(id));
@@ -70,6 +75,15 @@ public class VentasController {
                 .body(ventasService.saveOrUpdateProducto(id, asignarProductoDTO.getProductoId(), asignarProductoDTO.getCantidad()));
     }
 
+    @PostMapping("/{id}/productos/con-stock")
+    public ResponseEntity<ProductoVentaDTO> addProductoToVentaConStock(
+            @PathVariable Long id,
+            @RequestBody AsignarProductoDTO asignarProductoDTO
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ventasService.saveOrUpdateProductoConStock(id, asignarProductoDTO.getProductoId(), asignarProductoDTO.getCantidad()));
+    }
+
     @PatchMapping("/{id}/productos/{productoId}/cantidad")
     public ResponseEntity<ProductoVentaDTO> cambiarCantidadProducto(
             @PathVariable Long id,
@@ -77,5 +91,32 @@ public class VentasController {
             @RequestBody AsignarProductoDTO asignarProductoDTO
     ) {
         return ResponseEntity.ok(ventasService.cambiarCantidadProducto(id, productoId, asignarProductoDTO.getCantidad()));
+    }
+
+    @PatchMapping("/{id}/productos/{productoId}/cantidad/con-stock")
+    public ResponseEntity<ProductoVentaDTO> cambiarCantidadProductoConStock(
+            @PathVariable Long id,
+            @PathVariable Long productoId,
+            @RequestBody AsignarProductoDTO asignarProductoDTO
+    ) {
+        return ResponseEntity.ok(ventasService.cambiarCantidadProductoConStock(id, productoId, asignarProductoDTO.getCantidad()));
+    }
+
+    @DeleteMapping("/{id}/productos/{productoId}")
+    public ResponseEntity<Void> deleteProductoFromVenta(
+            @PathVariable Long id,
+            @PathVariable Long productoId
+    ) {
+        ventasService.eliminarProducto(id, productoId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/productos/{productoId}/con-stock")
+    public ResponseEntity<Void> deleteProductoFromVentaConStock(
+            @PathVariable Long id,
+            @PathVariable Long productoId
+    ) {
+        ventasService.eliminarProductoConStock(id, productoId);
+        return ResponseEntity.noContent().build();
     }
 }
