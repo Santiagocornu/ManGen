@@ -18,6 +18,8 @@ import com.GenMan.GenMan.Repository.ProductoRepository;
 import com.GenMan.GenMan.Repository.SucursalRepository;
 import com.GenMan.GenMan.Repository.UserRepository;
 import com.GenMan.GenMan.Repository.VentasRepository;
+import com.GenMan.GenMan.Security.AuthenticatedUser;
+import com.GenMan.GenMan.Security.AuthenticatedUserContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.Date;
 
 @Service
+@Transactional(readOnly = true)
 public class SucursalService {
 
     private final SucursalRepository sucursalRepository;
@@ -51,24 +54,17 @@ public class SucursalService {
     }
 
     public List<SucursalDTO> findAll() {
-        return sucursalRepository.findAll()
-                .stream()
-                .map(this::toDto)
-                .toList();
+        return List.of(toDto(currentSucursal()));
     }
 
     public SucursalDTO findById(Long id) {
-        return sucursalRepository.findById(id)
-                .map(this::toDto)
-                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + id));
+        validateCurrentSucursalAccess(id);
+        return toDto(currentSucursal());
     }
 
+    @Transactional
     public SucursalDTO save(SucursalDTO sucursalDTO) {
-        validateNombre(sucursalDTO.getNombre(), null);
-
-        Sucursal sucursal = new Sucursal();
-        sucursal.setNombre(sucursalDTO.getNombre());
-        return toDto(sucursalRepository.save(sucursal));
+        throw new BadRequestException("No se pueden crear sucursales desde este endpoint");
     }
 
     @Transactional
@@ -98,33 +94,27 @@ public class SucursalService {
         return new RegisterSucursalAdminData(toDto(sucursalGuardada), toDto(adminGuardado));
     }
 
+    @Transactional
     public SucursalDTO update(Long id, SucursalDTO sucursalDTO) {
+        validateCurrentSucursalAccess(id);
+        validateSucursalIdInBody(sucursalDTO.getId(), id);
         validateNombre(sucursalDTO.getNombre(), id);
 
-        Sucursal sucursal = sucursalRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + id));
+        Sucursal sucursal = currentSucursal();
 
         sucursal.setNombre(sucursalDTO.getNombre());
         return toDto(sucursalRepository.save(sucursal));
     }
 
+    @Transactional
     public void deleteById(Long id) {
-        Sucursal sucursal = sucursalRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + id));
-
-        if (!userRepository.findAllBySucursal_Id(id).isEmpty()
-                || !materiaPrimaRepository.findAllBySucursal_Id(id).isEmpty()
-                || !productoRepository.findAllBySucursal_Id(id).isEmpty()
-                || !pedidosRepository.findAllBySucursal_Id(id).isEmpty()
-                || !ventasRepository.findAllBySucursal_Id(id).isEmpty()) {
-            throw new BadRequestException("No se puede eliminar una sucursal que todavia tiene datos asociados");
-        }
-
-        sucursalRepository.delete(sucursal);
+        throw new BadRequestException("No se pueden eliminar sucursales desde este endpoint");
     }
 
     @Transactional
     public BackfillResultDTO backfillNullData(Long sucursalId) {
+        validateCurrentSucursalAccess(sucursalId);
+
         Sucursal sucursal = sucursalRepository.findById(sucursalId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + sucursalId));
 
@@ -170,6 +160,18 @@ public class SucursalService {
                 });
     }
 
+    private void validateCurrentSucursalAccess(Long sucursalId) {
+        if (!currentSucursalId().equals(sucursalId)) {
+            throw new ResourceNotFoundException("Sucursal no encontrada con id: " + sucursalId);
+        }
+    }
+
+    private void validateSucursalIdInBody(Long bodySucursalId, Long pathSucursalId) {
+        if (bodySucursalId != null && !bodySucursalId.equals(pathSucursalId)) {
+            throw new BadRequestException("No se puede cambiar el id de la sucursal");
+        }
+    }
+
     private void validateAdminRequest(RegisterSucursalAdminRequestDTO requestDTO) {
         if (requestDTO.getNombreAdmin() == null || requestDTO.getNombreAdmin().isBlank()) {
             throw new BadRequestException("El nombre del admin es obligatorio");
@@ -195,6 +197,29 @@ public class SucursalService {
                 user.getRoll(),
                 user.getSucursal() == null ? null : user.getSucursal().getId()
         );
+    }
+
+    private Long currentSucursalId() {
+        AuthenticatedUser authenticatedUser = currentAuthenticatedUser();
+        Long sucursalId = authenticatedUser.sucursalId();
+        if (sucursalId == null) {
+            throw new BadRequestException("No se pudo resolver la sucursal del usuario autenticado");
+        }
+        return sucursalId;
+    }
+
+    private Sucursal currentSucursal() {
+        Long sucursalId = currentSucursalId();
+        return sucursalRepository.findById(sucursalId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + sucursalId));
+    }
+
+    private AuthenticatedUser currentAuthenticatedUser() {
+        AuthenticatedUser authenticatedUser = AuthenticatedUserContext.get();
+        if (authenticatedUser == null) {
+            throw new BadRequestException("No se pudo resolver el usuario autenticado");
+        }
+        return authenticatedUser;
     }
 
     public record RegisterSucursalAdminData(SucursalDTO sucursal, UserDTO user) {

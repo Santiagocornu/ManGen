@@ -12,10 +12,12 @@ import com.GenMan.GenMan.Repository.ProductoRepository;
 import com.GenMan.GenMan.Repository.TablasIntermedias.Producto_PedidosRepository;
 import com.GenMan.GenMan.Security.SucursalContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class ProductoPedidosService {
 
     private final Producto_PedidosRepository productoPedidosRepository;
@@ -32,6 +34,7 @@ public class ProductoPedidosService {
         this.productoRepository = productoRepository;
     }
 
+    @Transactional
     public ProductoPedidosDTO crearOActualizar(Long pedidoId, Long productoId, Integer cantidad) {
         validateCantidad(cantidad);
 
@@ -49,6 +52,7 @@ public class ProductoPedidosService {
         return toDto(productoPedidosRepository.save(relacion));
     }
 
+    @Transactional
     public ProductoPedidosDTO cambiarCantidad(Long pedidoId, Long productoId, Integer cantidad) {
         validateCantidad(cantidad);
 

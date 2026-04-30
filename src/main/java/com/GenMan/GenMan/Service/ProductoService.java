@@ -13,10 +13,12 @@ import com.GenMan.GenMan.Security.SucursalContext;
 import com.GenMan.GenMan.Service.TablasIntermedias.MateriaPrimaProductoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class ProductoService {
 
     private final ProductoRepository productoRepository;
@@ -47,6 +49,7 @@ public class ProductoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con codigo: " + id));
     }
 
+    @Transactional
     public ProductoDTO save(ProductoDTO productoDTO) {
         validate(productoDTO);
         Producto producto = toEntity(productoDTO);
@@ -54,6 +57,7 @@ public class ProductoService {
         return toDto(productoRepository.save(producto));
     }
 
+    @Transactional
     public ProductoDTO update(Long id, ProductoDTO productoDTO) {
         validate(productoDTO);
 
@@ -69,6 +73,7 @@ public class ProductoService {
         return toDto(productoRepository.save(productoExistente));
     }
 
+    @Transactional
     public void deleteById(Long id) {
         if (!productoRepository.existsByIdAndSucursal_Id(id, currentSucursalId())) {
             throw new ResourceNotFoundException("No se pudo eliminar. Producto no encontrado con codigo: " + id);

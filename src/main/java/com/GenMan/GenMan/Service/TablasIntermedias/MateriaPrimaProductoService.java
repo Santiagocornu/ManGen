@@ -13,10 +13,12 @@ import com.GenMan.GenMan.Repository.ProductoRepository;
 import com.GenMan.GenMan.Repository.TablasIntermedias.MateriaPrima_ProductoRepository;
 import com.GenMan.GenMan.Security.SucursalContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class MateriaPrimaProductoService {
 
     private final MateriaPrima_ProductoRepository materiaPrimaProductoRepository;
@@ -33,6 +35,7 @@ public class MateriaPrimaProductoService {
         this.productoRepository = productoRepository;
     }
 
+    @Transactional
     public MateriaPrimaProductosDTO crearOActualizar(Long materiaPrimaId, Long productoId, Integer cantidad) {
         validateCantidad(cantidad);
 
@@ -50,6 +53,7 @@ public class MateriaPrimaProductoService {
         return toDto(materiaPrimaProductoRepository.save(relacion));
     }
 
+    @Transactional
     public MateriaPrimaProductosDTO cambiarCantidad(Long materiaPrimaId, Long productoId, Integer cantidad) {
         validateCantidad(cantidad);
 

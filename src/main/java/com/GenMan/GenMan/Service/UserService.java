@@ -10,10 +10,12 @@ import com.GenMan.GenMan.Repository.UserRepository;
 import com.GenMan.GenMan.Security.AuthenticatedUser;
 import com.GenMan.GenMan.Security.AuthenticatedUserContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository userRepository;
@@ -55,6 +57,7 @@ public class UserService {
         return toDto(user);
     }
 
+    @Transactional
     public UserDTO cambiarContrasena(String email, String password, String newPassword) {
         User user = userRepository.findByEmailAndSucursal_Id(email, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + email));
@@ -82,14 +85,18 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + id));
     }
 
+    @Transactional
     public UserDTO save(User user) {
         validateUserManagementPermission();
+        validateManagedUserSucursal(user);
         user.setSucursal(resolveSucursalForManagedUser(user));
         return toDto(userRepository.save(user));
     }
 
+    @Transactional
     public UserDTO update(Long id, User user) {
         validateUserManagementPermission();
+        validateManagedUserSucursal(user);
         User userExistente = userRepository.findByIdAndSucursal_Id(id, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + id));
 
@@ -103,6 +110,7 @@ public class UserService {
         return toDto(userRepository.save(userExistente));
     }
 
+    @Transactional
     public void deleteById(Long id) {
         validateUserManagementPermission();
         User user = userRepository.findByIdAndSucursal_Id(id, currentSucursalId())
@@ -117,13 +125,17 @@ public class UserService {
         }
     }
 
-    private void validateSameSucursal(User user) {
+    private void validateManagedUserSucursal(User user) {
         AuthenticatedUser authenticatedUser = AuthenticatedUserContext.get();
         Long currentSucursalId = authenticatedUser == null ? null : authenticatedUser.sucursalId();
         Long userSucursalId = user.getSucursal() == null ? null : user.getSucursal().getId();
 
-        if (currentSucursalId == null || userSucursalId == null || !currentSucursalId.equals(userSucursalId)) {
-            throw new BadRequestException("Solo podes administrar usuarios de tu misma sucursal");
+        if (currentSucursalId == null) {
+            throw new BadRequestException("No se pudo resolver la sucursal del usuario autenticado");
+        }
+
+        if (userSucursalId != null && !currentSucursalId.equals(userSucursalId)) {
+            throw new BadRequestException("No podes cambiar la sucursal asociada del usuario");
         }
     }
 

@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class VentasService {
 
     private final VentasRepository ventasRepository;
@@ -57,14 +58,14 @@ public class VentasService {
                 .map(this::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Venta no encontrada con codigo: " + id));
     }
-
+    @Transactional
     public VentasDTO save(VentasDTO ventasDTO) {
         validate(ventasDTO);
         Ventas venta = toEntity(ventasDTO);
         venta.setSucursal(currentSucursal());
         return toDto(ventasRepository.save(venta));
     }
-
+    @Transactional
     public VentasDTO update(Long id, VentasDTO ventasDTO) {
         validate(ventasDTO);
 
@@ -79,6 +80,7 @@ public class VentasService {
         return toDto(ventasRepository.save(ventaExistente));
     }
 
+    @Transactional
     public void deleteById(Long id) {
         if (!ventasRepository.existsByIdAndSucursal_Id(id, currentSucursalId())) {
             throw new ResourceNotFoundException("No se pudo eliminar. Venta no encontrada con codigo: " + id);
@@ -106,6 +108,7 @@ public class VentasService {
         return productoVentaService.cambiarCantidadConStock(ventaId, productoId, cantidad);
     }
 
+    @Transactional
     public void eliminarProducto(Long ventaId, Long productoId) {
         productoVentaService.eliminarProductoDeVenta(ventaId, productoId);
     }
@@ -123,6 +126,7 @@ public class VentasService {
     public VentasDTO crearDesdePedidoConStock(Long pedidoId) {
         return crearDesdePedido(pedidoId, true);
     }
+
 
     private VentasDTO crearDesdePedido(Long pedidoId, boolean ajustarStock) {
         Pedidos pedido = pedidosRepository.findByIdAndSucursal_Id(pedidoId, currentSucursalId())

@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class ProductoVentaService {
 
     private final Producto_VentaRepository productoVentaRepository;
@@ -38,6 +39,7 @@ public class ProductoVentaService {
         this.materiaPrimaProductoRepository = materiaPrimaProductoRepository;
     }
 
+    @Transactional
     public ProductoVentaDTO crearOActualizar(Long ventaId, Long productoId, Integer cantidad) {
         validateCantidad(cantidad);
 
@@ -83,6 +85,7 @@ public class ProductoVentaService {
         return toDto(productoVentaRepository.save(relacion));
     }
 
+    @Transactional
     public ProductoVentaDTO cambiarCantidad(Long ventaId, Long productoId, Integer cantidad) {
         validateCantidad(cantidad);
 
@@ -116,6 +119,7 @@ public class ProductoVentaService {
         return toDto(productoVentaRepository.save(relacion));
     }
 
+    @Transactional
     public void eliminarProductoDeVenta(Long ventaId, Long productoId) {
         Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
                 .orElseThrow(() -> new ResourceNotFoundException(

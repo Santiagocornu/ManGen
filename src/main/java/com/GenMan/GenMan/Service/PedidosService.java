@@ -13,10 +13,12 @@ import com.GenMan.GenMan.Security.SucursalContext;
 import com.GenMan.GenMan.Service.TablasIntermedias.ProductoPedidosService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class PedidosService {
 
     private final PedidosRepository pedidosRepository;
@@ -47,6 +49,7 @@ public class PedidosService {
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con codigo: " + id));
     }
 
+    @Transactional
     public PedidosDTO save(PedidosDTO pedidosDTO) {
         validate(pedidosDTO);
         Pedidos pedidos = toEntity(pedidosDTO);
@@ -54,6 +57,7 @@ public class PedidosService {
         return toDto(pedidosRepository.save(pedidos));
     }
 
+    @Transactional
     public PedidosDTO update(Long id, PedidosDTO pedidosDTO) {
         validate(pedidosDTO);
 
@@ -68,6 +72,7 @@ public class PedidosService {
         return toDto(pedidosRepository.save(pedidoExistente));
     }
 
+    @Transactional
     public void deleteById(Long id) {
         if (!pedidosRepository.existsByIdAndSucursal_Id(id, currentSucursalId())) {
             throw new ResourceNotFoundException("No se pudo eliminar. Pedido no encontrado con codigo: " + id);

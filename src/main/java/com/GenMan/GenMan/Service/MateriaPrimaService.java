@@ -13,10 +13,12 @@ import com.GenMan.GenMan.Security.SucursalContext;
 import com.GenMan.GenMan.Service.TablasIntermedias.MateriaPrimaProductoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class MateriaPrimaService {
 
     private final MateriaPrimaRepository materiaPrimaRepository;
@@ -47,6 +49,7 @@ public class MateriaPrimaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Materia prima no encontrada con codigo: " + id));
     }
 
+    @Transactional
     public MateriaPrimaDTO save(MateriaPrimaDTO materiaPrimaDTO) {
         validate(materiaPrimaDTO);
         MateriaPrima materiaPrima = toEntity(materiaPrimaDTO);
@@ -54,6 +57,7 @@ public class MateriaPrimaService {
         return toDto(materiaPrimaRepository.save(materiaPrima));
     }
 
+    @Transactional
     public MateriaPrimaDTO update(Long id, MateriaPrimaDTO materiaPrimaDTO) {
         validate(materiaPrimaDTO);
 
@@ -69,6 +73,7 @@ public class MateriaPrimaService {
         return toDto(materiaPrimaRepository.save(materiaPrimaExistente));
     }
 
+    @Transactional
     public void deleteById(Long id) {
         if (!materiaPrimaRepository.existsByIdAndSucursal_Id(id, currentSucursalId())) {
             throw new ResourceNotFoundException("No se pudo eliminar. Materia prima no encontrada con codigo: " + id);
