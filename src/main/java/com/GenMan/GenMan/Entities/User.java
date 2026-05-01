@@ -8,7 +8,13 @@ import java.util.Date;
 
 
 @Entity
-@Table(name = "User")
+@Table(
+        name = "User",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_user_email_sucursal",
+                columnNames = {"email", "sucursal_id"}
+        )
+)
 @Getter
 @Setter
 @ToString(exclude = "password")

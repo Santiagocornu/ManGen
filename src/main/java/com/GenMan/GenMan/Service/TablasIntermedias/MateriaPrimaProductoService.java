@@ -37,6 +37,8 @@ public class MateriaPrimaProductoService {
 
     @Transactional
     public MateriaPrimaProductosDTO crearOActualizar(Long materiaPrimaId, Long productoId, Integer cantidad) {
+        validateMateriaPrimaId(materiaPrimaId);
+        validateProductoId(productoId);
         validateCantidad(cantidad);
 
         MateriaPrima materiaPrima = materiaPrimaRepository.findByIdAndSucursal_Id(materiaPrimaId, currentSucursalId())
@@ -55,6 +57,8 @@ public class MateriaPrimaProductoService {
 
     @Transactional
     public MateriaPrimaProductosDTO cambiarCantidad(Long materiaPrimaId, Long productoId, Integer cantidad) {
+        validateMateriaPrimaId(materiaPrimaId);
+        validateProductoId(productoId);
         validateCantidad(cantidad);
 
         MateriaPrima_Productos relacion = materiaPrimaProductoRepository
@@ -70,6 +74,7 @@ public class MateriaPrimaProductoService {
     }
 
     public List<ProductoCantidadDTO> obtenerProductosPorMateriaPrima(Long materiaPrimaId) {
+        validateMateriaPrimaId(materiaPrimaId);
         if (!materiaPrimaRepository.existsByIdAndSucursal_Id(materiaPrimaId, currentSucursalId())) {
             throw new ResourceNotFoundException("Materia prima no encontrada con id: " + materiaPrimaId);
         }
@@ -89,6 +94,7 @@ public class MateriaPrimaProductoService {
     }
 
     public List<MateriaPrimaCantidadDTO> obtenerMateriasPrimasPorProducto(Long productoId) {
+        validateProductoId(productoId);
         if (!productoRepository.existsByIdAndSucursal_Id(productoId, currentSucursalId())) {
             throw new ResourceNotFoundException("Producto no encontrado con id: " + productoId);
         }
@@ -113,6 +119,18 @@ public class MateriaPrimaProductoService {
         }
         if (cantidad < 0) {
             throw new BadRequestException("La cantidad debe ser mayor o igual a 0");
+        }
+    }
+
+    private void validateMateriaPrimaId(Long materiaPrimaId) {
+        if (materiaPrimaId == null) {
+            throw new BadRequestException("El id de la materia prima es obligatorio");
+        }
+    }
+
+    private void validateProductoId(Long productoId) {
+        if (productoId == null) {
+            throw new BadRequestException("El id del producto es obligatorio");
         }
     }
 

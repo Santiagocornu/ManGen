@@ -34,7 +34,7 @@ public class UserService {
                 .toList();
     }
 
-    public UserDTO login(String email, String password) {
+    public UserDTO login(String email, String password, Long sucursalId) {
         if (email == null || email.isBlank()) {
             throw new BadRequestException("El email es obligatorio");
         }
@@ -43,8 +43,7 @@ public class UserService {
             throw new BadRequestException("La contraseña es obligatoria");
         }
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BadRequestException("Credenciales invalidas"));
+        User user = resolveLoginUser(email, password, sucursalId);
 
         if (!user.getPassword().equals(password)) {
             throw new BadRequestException("Credenciales invalidas");
@@ -90,6 +89,7 @@ public class UserService {
         validateUserManagementPermission();
         validateManagedUserSucursal(user);
         user.setSucursal(resolveSucursalForManagedUser(user));
+        validateUniqueEmailInSucursal(user.getEmail(), user.getSucursal().getId(), null);
         return toDto(userRepository.save(user));
     }
 
@@ -106,6 +106,7 @@ public class UserService {
         userExistente.setPassword(user.getPassword());
         userExistente.setRoll(user.getRoll());
         userExistente.setSucursal(resolveSucursalForManagedUser(user));
+        validateUniqueEmailInSucursal(userExistente.getEmail(), userExistente.getSucursal().getId(), userExistente.getId());
 
         return toDto(userRepository.save(userExistente));
     }
@@ -115,7 +116,70 @@ public class UserService {
         validateUserManagementPermission();
         User user = userRepository.findByIdAndSucursal_Id(id, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + id));
+        if (isSucursalCreator(user)) {
+            throw new BadRequestException("No se puede eliminar el usuario creador de la sucursal");
+        }
         userRepository.delete(user);
+    }
+
+    private User resolveLoginUser(String email, String password, Long sucursalId) {
+        if (sucursalId != null) {
+            return userRepository.findByEmailAndSucursal_Id(email, sucursalId)
+                    .orElseThrow(() -> new BadRequestException("Credenciales invalidas"));
+        }
+
+        List<User> matchingUsers = userRepository.findAllByEmail(email)
+                .stream()
+                .filter(user -> user.getPassword().equals(password))
+                .toList();
+
+        if (matchingUsers.isEmpty()) {
+            throw new BadRequestException("Credenciales invalidas");
+        }
+
+        if (matchingUsers.size() > 1) {
+            throw new BadRequestException("Hay mas de una sucursal con ese email. Indica sucursalId para iniciar sesion");
+        }
+
+        return matchingUsers.get(0);
+    }
+
+    private void validateUniqueEmailInSucursal(String email, Long sucursalId, Long currentUserId) {
+        if (email == null || email.isBlank()) {
+            throw new BadRequestException("El email es obligatorio");
+        }
+
+        userRepository.findByEmailAndSucursal_Id(email, sucursalId)
+                .filter(user -> currentUserId == null || !user.getId().equals(currentUserId))
+                .ifPresent(user -> {
+                    throw new BadRequestException("Ya existe un usuario con ese email en esta sucursal");
+                });
+    }
+
+    private boolean isSucursalCreator(User user) {
+        Sucursal sucursal = sucursalRepository.findById(currentSucursalId())
+                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + currentSucursalId()));
+
+        User creador = resolveSucursalCreator(sucursal);
+        return creador != null && creador.getId().equals(user.getId());
+    }
+
+    private User resolveSucursalCreator(Sucursal sucursal) {
+        if (sucursal.getCreador() != null) {
+            return sucursal.getCreador();
+        }
+
+        User creador = userRepository
+                .findFirstBySucursal_IdAndRollIgnoreCaseOrderByFechaCreacionAscIdAsc(sucursal.getId(), "ADMIN")
+                .or(() -> userRepository.findFirstBySucursal_IdOrderByFechaCreacionAscIdAsc(sucursal.getId()))
+                .orElse(null);
+
+        if (creador != null) {
+            sucursal.setCreador(creador);
+            sucursalRepository.save(sucursal);
+        }
+
+        return creador;
     }
 
     private void validateUserManagementPermission() {

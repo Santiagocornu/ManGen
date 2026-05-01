@@ -217,6 +217,15 @@ Asignar producto:
 }
 ```
 
+Tambien se acepta `id` o `producto_id` en lugar de `productoId`:
+
+```json
+{
+  "id": 1,
+  "cantidad": 3
+}
+```
+
 Asignar materia prima:
 
 ```json
@@ -225,6 +234,17 @@ Asignar materia prima:
   "cantidad": 2
 }
 ```
+
+Tambien se acepta `id` o `materia_prima_id` en lugar de `materiaPrimaId`:
+
+```json
+{
+  "id": 1,
+  "cantidad": 2
+}
+```
+
+Regla importante: todos los IDs usados en una relacion tienen que pertenecer a la misma sucursal del token JWT.
 
 ## Endpoints
 
@@ -477,9 +497,39 @@ Devuelve los productos asociados a una materia prima de la sucursal actual.
 
 Asocia un producto a una materia prima de la misma sucursal.
 
+En este endpoint, `{id}` es el id de la materia prima. El producto va en el body.
+
+Body recomendado:
+
+```json
+{
+  "productoId": 102,
+  "cantidad": 2
+}
+```
+
+Body alternativo valido:
+
+```json
+{
+  "id": 102,
+  "cantidad": 2
+}
+```
+
 ### `PATCH /apiManGen/Materia_prima/{id}/productos/{productoId}/cantidad`
 
 Cambia la cantidad de la relacion entre materia prima y producto.
+
+En este endpoint, `{id}` es el id de la materia prima y `{productoId}` es el id del producto.
+
+Body:
+
+```json
+{
+  "cantidad": 5
+}
+```
 
 ## Producto
 
@@ -515,9 +565,39 @@ Devuelve las materias primas asociadas a un producto de la sucursal actual.
 
 Asocia una materia prima al producto dentro de la misma sucursal.
 
+En este endpoint, `{id}` es el id del producto. La materia prima va en el body.
+
+Body recomendado:
+
+```json
+{
+  "materiaPrimaId": 52,
+  "cantidad": 2
+}
+```
+
+Body alternativo valido:
+
+```json
+{
+  "id": 52,
+  "cantidad": 2
+}
+```
+
 ### `PATCH /apiManGen/Producto/{id}/materias-primas/{materiaPrimaId}/cantidad`
 
 Cambia la cantidad de la relacion entre producto y materia prima.
+
+En este endpoint, `{id}` es el id del producto y `{materiaPrimaId}` es el id de la materia prima.
+
+Body:
+
+```json
+{
+  "cantidad": 5
+}
+```
 
 ## Pedidos
 
@@ -553,9 +633,39 @@ Devuelve los productos asociados a un pedido de la sucursal actual.
 
 Asocia un producto a un pedido dentro de la misma sucursal.
 
+En este endpoint, `{id}` es el id del pedido. El producto va en el body.
+
+Body recomendado:
+
+```json
+{
+  "productoId": 102,
+  "cantidad": 2
+}
+```
+
+Body alternativo valido:
+
+```json
+{
+  "id": 102,
+  "cantidad": 2
+}
+```
+
 ### `PATCH /apiManGen/Pedidos/{id}/productos/{productoId}/cantidad`
 
 Cambia la cantidad de la relacion entre pedido y producto.
+
+En este endpoint, `{id}` es el id del pedido y `{productoId}` es el id del producto.
+
+Body:
+
+```json
+{
+  "cantidad": 5
+}
+```
 
 ## Ventas
 
@@ -599,13 +709,45 @@ Devuelve los productos asociados a una venta de la sucursal actual.
 
 Asocia un producto a una venta de la misma sucursal.
 
+En este endpoint, `{id}` es el id de la venta. El producto va en el body.
+
+Body recomendado:
+
+```json
+{
+  "productoId": 102,
+  "cantidad": 2
+}
+```
+
+Body alternativo valido:
+
+```json
+{
+  "id": 102,
+  "cantidad": 2
+}
+```
+
 ### `POST /apiManGen/Ventas/{id}/productos/con-stock`
 
 Asocia un producto a una venta de la misma sucursal ajustando stock.
 
+Usa el mismo body que `POST /apiManGen/Ventas/{id}/productos`, pero ademas descuenta stock del producto y sus materias primas relacionadas.
+
 ### `PATCH /apiManGen/Ventas/{id}/productos/{productoId}/cantidad`
 
 Cambia la cantidad de la relacion entre venta y producto.
+
+En este endpoint, `{id}` es el id de la venta y `{productoId}` es el id del producto.
+
+Body:
+
+```json
+{
+  "cantidad": 5
+}
+```
 
 ### `PATCH /apiManGen/Ventas/{id}/productos/{productoId}/cantidad/con-stock`
 
@@ -689,9 +831,100 @@ curl http://localhost:8080/apiManGen/Producto/1/materias-primas \
   -H "Authorization: Bearer TU_TOKEN"
 ```
 
+Relacionar materia prima con producto desde materia prima:
+
+```bash
+curl -X POST http://localhost:8080/apiManGen/Materia_prima/52/productos \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"productoId\":102,\"cantidad\":2}"
+```
+
+Relacionar materia prima con producto usando `id` en el body:
+
+```bash
+curl -X POST http://localhost:8080/apiManGen/Materia_prima/52/productos \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"id\":102,\"cantidad\":2}"
+```
+
+Relacionar producto con materia prima desde producto:
+
+```bash
+curl -X POST http://localhost:8080/apiManGen/Producto/102/materias-primas \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"materiaPrimaId\":52,\"cantidad\":2}"
+```
+
+Relacionar pedido con producto:
+
+```bash
+curl -X POST http://localhost:8080/apiManGen/Pedidos/1/productos \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"productoId\":102,\"cantidad\":2}"
+```
+
+Relacionar venta con producto:
+
+```bash
+curl -X POST http://localhost:8080/apiManGen/Ventas/1/productos \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"productoId\":102,\"cantidad\":2}"
+```
+
+Relacionar venta con producto ajustando stock:
+
+```bash
+curl -X POST http://localhost:8080/apiManGen/Ventas/1/productos/con-stock \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"productoId\":102,\"cantidad\":2}"
+```
+
+Cambiar cantidad de una relacion materia prima-producto:
+
+```bash
+curl -X PATCH http://localhost:8080/apiManGen/Materia_prima/52/productos/102/cantidad \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"cantidad\":5}"
+```
+
+Cambiar cantidad de una relacion producto-materia prima:
+
+```bash
+curl -X PATCH http://localhost:8080/apiManGen/Producto/102/materias-primas/52/cantidad \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"cantidad\":5}"
+```
+
+Cambiar cantidad de una relacion pedido-producto:
+
+```bash
+curl -X PATCH http://localhost:8080/apiManGen/Pedidos/1/productos/102/cantidad \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"cantidad\":5}"
+```
+
+Cambiar cantidad de una relacion venta-producto:
+
+```bash
+curl -X PATCH http://localhost:8080/apiManGen/Ventas/1/productos/102/cantidad \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN" \
+  -d "{\"cantidad\":5}"
+```
+
 Crear venta desde pedido:
 
 ```bash
 curl -X POST http://localhost:8080/apiManGen/Ventas/desde-pedido/1 \
   -H "Authorization: Bearer TU_TOKEN"
 ```
+

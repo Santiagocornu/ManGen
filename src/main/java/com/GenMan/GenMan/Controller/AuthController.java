@@ -30,7 +30,11 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponseDTO login(@RequestBody LoginRequestDTO loginRequestDTO) {
-        UserDTO user = userService.login(loginRequestDTO.getEmail(), loginRequestDTO.getPassword());
+        UserDTO user = userService.login(
+                loginRequestDTO.getEmail(),
+                loginRequestDTO.getPassword(),
+                loginRequestDTO.getSucursalId()
+        );
         String token = jwtService.generateToken(user.getId(), user.getSucursalId(), user.getRoll());
 
         return new LoginResponseDTO(token, user);

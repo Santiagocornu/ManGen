@@ -36,6 +36,8 @@ public class ProductoPedidosService {
 
     @Transactional
     public ProductoPedidosDTO crearOActualizar(Long pedidoId, Long productoId, Integer cantidad) {
+        validatePedidoId(pedidoId);
+        validateProductoId(productoId);
         validateCantidad(cantidad);
 
         Pedidos pedido = pedidosRepository.findByIdAndSucursal_Id(pedidoId, currentSucursalId())
@@ -54,6 +56,8 @@ public class ProductoPedidosService {
 
     @Transactional
     public ProductoPedidosDTO cambiarCantidad(Long pedidoId, Long productoId, Integer cantidad) {
+        validatePedidoId(pedidoId);
+        validateProductoId(productoId);
         validateCantidad(cantidad);
 
         Producto_Pedidos relacion = productoPedidosRepository.findByPedidos_IdAndProducto_Id(pedidoId, productoId)
@@ -68,6 +72,7 @@ public class ProductoPedidosService {
     }
 
     public List<ProductoCantidadDTO> obtenerProductosPorPedido(Long pedidoId) {
+        validatePedidoId(pedidoId);
         if (!pedidosRepository.existsByIdAndSucursal_Id(pedidoId, currentSucursalId())) {
             throw new ResourceNotFoundException("Pedido no encontrado con id: " + pedidoId);
         }
@@ -92,6 +97,18 @@ public class ProductoPedidosService {
         }
         if (cantidad < 0) {
             throw new BadRequestException("La cantidad debe ser mayor o igual a 0");
+        }
+    }
+
+    private void validatePedidoId(Long pedidoId) {
+        if (pedidoId == null) {
+            throw new BadRequestException("El id del pedido es obligatorio");
+        }
+    }
+
+    private void validateProductoId(Long productoId) {
+        if (productoId == null) {
+            throw new BadRequestException("El id del producto es obligatorio");
         }
     }
 

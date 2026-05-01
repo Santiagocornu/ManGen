@@ -72,11 +72,6 @@ public class SucursalService {
         validateNombre(requestDTO.getNombreSucursal(), null);
         validateAdminRequest(requestDTO);
 
-        userRepository.findByEmail(requestDTO.getEmailAdmin())
-                .ifPresent(user -> {
-                    throw new BadRequestException("Ya existe un usuario con ese email");
-                });
-
         Sucursal sucursal = new Sucursal();
         sucursal.setNombre(requestDTO.getNombreSucursal());
         Sucursal sucursalGuardada = sucursalRepository.save(sucursal);
@@ -90,6 +85,8 @@ public class SucursalService {
         admin.setSucursal(sucursalGuardada);
 
         User adminGuardado = userRepository.save(admin);
+        sucursalGuardada.setCreador(adminGuardado);
+        sucursalGuardada = sucursalRepository.save(sucursalGuardada);
 
         return new RegisterSucursalAdminData(toDto(sucursalGuardada), toDto(adminGuardado));
     }
@@ -185,7 +182,11 @@ public class SucursalService {
     }
 
     private SucursalDTO toDto(Sucursal sucursal) {
-        return new SucursalDTO(sucursal.getId(), sucursal.getNombre());
+        return new SucursalDTO(
+                sucursal.getId(),
+                sucursal.getNombre(),
+                sucursal.getCreador() == null ? null : sucursal.getCreador().getId()
+        );
     }
 
     private UserDTO toDto(User user) {

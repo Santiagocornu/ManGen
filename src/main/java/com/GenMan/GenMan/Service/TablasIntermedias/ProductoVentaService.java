@@ -41,6 +41,8 @@ public class ProductoVentaService {
 
     @Transactional
     public ProductoVentaDTO crearOActualizar(Long ventaId, Long productoId, Integer cantidad) {
+        validateVentaId(ventaId);
+        validateProductoId(productoId);
         validateCantidad(cantidad);
 
         Ventas venta = ventasRepository.findByIdAndSucursal_Id(ventaId, currentSucursalId())
@@ -58,6 +60,8 @@ public class ProductoVentaService {
 
     @Transactional
     public ProductoVentaDTO crearOActualizarConStock(Long ventaId, Long productoId, Integer cantidad) {
+        validateVentaId(ventaId);
+        validateProductoId(productoId);
         validateCantidad(cantidad);
 
         Ventas venta = ventasRepository.findByIdAndSucursal_Id(ventaId, currentSucursalId())
@@ -87,6 +91,8 @@ public class ProductoVentaService {
 
     @Transactional
     public ProductoVentaDTO cambiarCantidad(Long ventaId, Long productoId, Integer cantidad) {
+        validateVentaId(ventaId);
+        validateProductoId(productoId);
         validateCantidad(cantidad);
 
         Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
@@ -102,6 +108,8 @@ public class ProductoVentaService {
 
     @Transactional
     public ProductoVentaDTO cambiarCantidadConStock(Long ventaId, Long productoId, Integer cantidad) {
+        validateVentaId(ventaId);
+        validateProductoId(productoId);
         validateCantidad(cantidad);
 
         Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
@@ -121,6 +129,9 @@ public class ProductoVentaService {
 
     @Transactional
     public void eliminarProductoDeVenta(Long ventaId, Long productoId) {
+        validateVentaId(ventaId);
+        validateProductoId(productoId);
+
         Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe relacion entre venta " + ventaId + " y producto " + productoId));
@@ -133,6 +144,9 @@ public class ProductoVentaService {
 
     @Transactional
     public void eliminarProductoDeVentaConStock(Long ventaId, Long productoId) {
+        validateVentaId(ventaId);
+        validateProductoId(productoId);
+
         Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe relacion entre venta " + ventaId + " y producto " + productoId));
@@ -145,6 +159,7 @@ public class ProductoVentaService {
     }
 
     public List<ProductoCantidadDTO> obtenerProductosPorVenta(Long ventaId) {
+        validateVentaId(ventaId);
         if (!ventasRepository.existsByIdAndSucursal_Id(ventaId, currentSucursalId())) {
             throw new ResourceNotFoundException("Venta no encontrada con id: " + ventaId);
         }
@@ -216,6 +231,18 @@ public class ProductoVentaService {
         }
         if (cantidad < 0) {
             throw new BadRequestException("La cantidad debe ser mayor o igual a 0");
+        }
+    }
+
+    private void validateVentaId(Long ventaId) {
+        if (ventaId == null) {
+            throw new BadRequestException("El id de la venta es obligatorio");
+        }
+    }
+
+    private void validateProductoId(Long productoId) {
+        if (productoId == null) {
+            throw new BadRequestException("El id del producto es obligatorio");
         }
     }
 
