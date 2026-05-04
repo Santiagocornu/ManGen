@@ -1,10 +1,11 @@
 package com.GenMan.GenMan.DTO;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.text.DateFormat;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -14,5 +15,6 @@ public class VentasDTO {
     private Double total;
     private Double totalDesc;
     private String metodoPago;
-    private DateFormat fecha;
+    @JsonFormat(pattern = "dd/MM/yyyy")
+    private LocalDate fecha;
 }

@@ -23,8 +23,8 @@ import com.GenMan.GenMan.Security.AuthenticatedUserContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Date;
 
 @Service
 @Transactional(readOnly = true)
@@ -78,7 +78,7 @@ public class SucursalService {
 
         User admin = new User();
         admin.setNombre(requestDTO.getNombreAdmin());
-        admin.setFechaCreacion(new Date());
+        admin.setFechaCreacion(LocalDate.now());
         admin.setEmail(requestDTO.getEmailAdmin());
         admin.setPassword(requestDTO.getPasswordAdmin());
         admin.setRoll("ADMIN");

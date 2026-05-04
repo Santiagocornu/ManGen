@@ -11,5 +11,5 @@ import lombok.NoArgsConstructor;
 public class AsignarProductoDTO {
     @JsonAlias({"id", "producto_id"})
     private Long productoId;
-    private Integer cantidad;
+    private Double cantidad;
 }

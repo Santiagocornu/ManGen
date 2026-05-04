@@ -33,7 +33,7 @@ public class Producto_Pedidos{
     private Producto producto;
 
     @Column(nullable = false)
-    private Integer cantidad;
+    private double cantidad;
 
     // Clase para clave compuesta PK
     @Data

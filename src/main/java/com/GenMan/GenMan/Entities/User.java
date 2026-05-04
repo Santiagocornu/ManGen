@@ -1,10 +1,11 @@
 package com.GenMan.GenMan.Entities;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 
 @Entity
@@ -28,7 +29,8 @@ public class User {
     @Column(nullable = false)
     String nombre;
     @Column(nullable = false)
-    Date fechaCreacion;
+    @JsonFormat(pattern = "dd/MM/yyyy")
+    LocalDate fechaCreacion;
     @Column(nullable = false)
     String email;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)

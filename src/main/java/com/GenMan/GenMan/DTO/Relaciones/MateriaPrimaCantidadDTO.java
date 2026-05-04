@@ -14,5 +14,5 @@ public class MateriaPrimaCantidadDTO {
     private Double precio;
     private String unidad;
     private Double cantidadDisponible;
-    private Integer cantidadRelacionada;
+    private Double cantidadRelacionada;
 }

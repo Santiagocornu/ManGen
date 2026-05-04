@@ -92,19 +92,23 @@ public class VentasService {
         return productoVentaService.obtenerProductosPorVenta(ventaId);
     }
 
-    public ProductoVentaDTO saveOrUpdateProducto(Long ventaId, Long productoId, Integer cantidad) {
+    @Transactional
+    public ProductoVentaDTO saveOrUpdateProducto(Long ventaId, Long productoId, Double cantidad) {
         return productoVentaService.crearOActualizar(ventaId, productoId, cantidad);
     }
 
-    public ProductoVentaDTO saveOrUpdateProductoConStock(Long ventaId, Long productoId, Integer cantidad) {
+    @Transactional
+    public ProductoVentaDTO saveOrUpdateProductoConStock(Long ventaId, Long productoId, Double cantidad) {
         return productoVentaService.crearOActualizarConStock(ventaId, productoId, cantidad);
     }
 
-    public ProductoVentaDTO cambiarCantidadProducto(Long ventaId, Long productoId, Integer cantidad) {
+    @Transactional
+    public ProductoVentaDTO cambiarCantidadProducto(Long ventaId, Long productoId, Double cantidad) {
         return productoVentaService.cambiarCantidad(ventaId, productoId, cantidad);
     }
 
-    public ProductoVentaDTO cambiarCantidadProductoConStock(Long ventaId, Long productoId, Integer cantidad) {
+    @Transactional
+    public ProductoVentaDTO cambiarCantidadProductoConStock(Long ventaId, Long productoId, Double cantidad) {
         return productoVentaService.cambiarCantidadConStock(ventaId, productoId, cantidad);
     }
 
@@ -113,6 +117,7 @@ public class VentasService {
         productoVentaService.eliminarProductoDeVenta(ventaId, productoId);
     }
 
+    @Transactional
     public void eliminarProductoConStock(Long ventaId, Long productoId) {
         productoVentaService.eliminarProductoDeVentaConStock(ventaId, productoId);
     }

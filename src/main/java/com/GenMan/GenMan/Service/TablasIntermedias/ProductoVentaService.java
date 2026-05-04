@@ -3,13 +3,11 @@ package com.GenMan.GenMan.Service.TablasIntermedias;
 import com.GenMan.GenMan.DTO.Relaciones.ProductoCantidadDTO;
 import com.GenMan.GenMan.DTO.TablasIntermedias.ProductoVentaDTO;
 import com.GenMan.GenMan.Entities.Producto;
-import com.GenMan.GenMan.Entities.TablasIntermedias.MateriaPrima_Productos;
 import com.GenMan.GenMan.Entities.TablasIntermedias.Producto_Venta;
 import com.GenMan.GenMan.Entities.Ventas;
 import com.GenMan.GenMan.Exceptions.BadRequestException;
 import com.GenMan.GenMan.Exceptions.ResourceNotFoundException;
 import com.GenMan.GenMan.Repository.ProductoRepository;
-import com.GenMan.GenMan.Repository.TablasIntermedias.MateriaPrima_ProductoRepository;
 import com.GenMan.GenMan.Repository.TablasIntermedias.Producto_VentaRepository;
 import com.GenMan.GenMan.Repository.VentasRepository;
 import com.GenMan.GenMan.Security.SucursalContext;
@@ -25,41 +23,19 @@ public class ProductoVentaService {
     private final Producto_VentaRepository productoVentaRepository;
     private final VentasRepository ventasRepository;
     private final ProductoRepository productoRepository;
-    private final MateriaPrima_ProductoRepository materiaPrimaProductoRepository;
 
     public ProductoVentaService(
             Producto_VentaRepository productoVentaRepository,
             VentasRepository ventasRepository,
-            ProductoRepository productoRepository,
-            MateriaPrima_ProductoRepository materiaPrimaProductoRepository
+            ProductoRepository productoRepository
     ) {
         this.productoVentaRepository = productoVentaRepository;
         this.ventasRepository = ventasRepository;
         this.productoRepository = productoRepository;
-        this.materiaPrimaProductoRepository = materiaPrimaProductoRepository;
     }
 
     @Transactional
-    public ProductoVentaDTO crearOActualizar(Long ventaId, Long productoId, Integer cantidad) {
-        validateVentaId(ventaId);
-        validateProductoId(productoId);
-        validateCantidad(cantidad);
-
-        Ventas venta = ventasRepository.findByIdAndSucursal_Id(ventaId, currentSucursalId())
-                .orElseThrow(() -> new ResourceNotFoundException("Venta no encontrada con id: " + ventaId));
-
-        Producto producto = productoRepository.findByIdAndSucursal_Id(productoId, currentSucursalId())
-                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id: " + productoId));
-
-        Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
-                .orElse(new Producto_Venta(venta, producto, cantidad));
-
-        relacion.setCantidad(cantidad);
-        return toDto(productoVentaRepository.save(relacion));
-    }
-
-    @Transactional
-    public ProductoVentaDTO crearOActualizarConStock(Long ventaId, Long productoId, Integer cantidad) {
+    public ProductoVentaDTO crearOActualizar(Long ventaId, Long productoId, Double cantidad) {
         validateVentaId(ventaId);
         validateProductoId(productoId);
         validateCantidad(cantidad);
@@ -73,8 +49,50 @@ public class ProductoVentaService {
         Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
                 .orElse(null);
 
-        int cantidadAnterior = relacion == null ? 0 : relacion.getCantidad();
-        int diferencia = cantidad - cantidadAnterior;
+        if (isZero(cantidad)) {
+            if (relacion != null) {
+                validateSameSucursal(relacion.getVenta().getSucursal() == null ? null : relacion.getVenta().getSucursal().getId());
+                validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+                productoVentaRepository.delete(relacion);
+            }
+            return new ProductoVentaDTO(ventaId, productoId, 0D);
+        }
+
+        if (relacion == null) {
+            relacion = new Producto_Venta(venta, producto, cantidad);
+        }
+
+        relacion.setCantidad(cantidad);
+        return toDto(productoVentaRepository.save(relacion));
+    }
+
+    @Transactional
+    public ProductoVentaDTO crearOActualizarConStock(Long ventaId, Long productoId, Double cantidad) {
+        validateVentaId(ventaId);
+        validateProductoId(productoId);
+        validateCantidad(cantidad);
+
+        Ventas venta = ventasRepository.findByIdAndSucursal_Id(ventaId, currentSucursalId())
+                .orElseThrow(() -> new ResourceNotFoundException("Venta no encontrada con id: " + ventaId));
+
+        Producto producto = productoRepository.findByIdAndSucursal_Id(productoId, currentSucursalId())
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id: " + productoId));
+
+        Producto_Venta relacion = productoVentaRepository.findByVenta_IdAndProducto_Id(ventaId, productoId)
+                .orElse(null);
+
+        if (isZero(cantidad)) {
+            if (relacion != null) {
+                validateSameSucursal(relacion.getVenta().getSucursal() == null ? null : relacion.getVenta().getSucursal().getId());
+                validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+                ajustarStock(relacion.getProducto(), -relacion.getCantidad());
+                productoVentaRepository.delete(relacion);
+            }
+            return new ProductoVentaDTO(ventaId, productoId, 0D);
+        }
+
+        double cantidadAnterior = relacion == null ? 0D : relacion.getCantidad();
+        double diferencia = cantidad - cantidadAnterior;
 
         ajustarStock(producto, diferencia);
 
@@ -90,7 +108,7 @@ public class ProductoVentaService {
     }
 
     @Transactional
-    public ProductoVentaDTO cambiarCantidad(Long ventaId, Long productoId, Integer cantidad) {
+    public ProductoVentaDTO cambiarCantidad(Long ventaId, Long productoId, Double cantidad) {
         validateVentaId(ventaId);
         validateProductoId(productoId);
         validateCantidad(cantidad);
@@ -101,13 +119,18 @@ public class ProductoVentaService {
 
         validateSameSucursal(relacion.getVenta().getSucursal() == null ? null : relacion.getVenta().getSucursal().getId());
         validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+
+        if (isZero(cantidad)) {
+            productoVentaRepository.delete(relacion);
+            return new ProductoVentaDTO(ventaId, productoId, 0D);
+        }
 
         relacion.setCantidad(cantidad);
         return toDto(productoVentaRepository.save(relacion));
     }
 
     @Transactional
-    public ProductoVentaDTO cambiarCantidadConStock(Long ventaId, Long productoId, Integer cantidad) {
+    public ProductoVentaDTO cambiarCantidadConStock(Long ventaId, Long productoId, Double cantidad) {
         validateVentaId(ventaId);
         validateProductoId(productoId);
         validateCantidad(cantidad);
@@ -119,7 +142,13 @@ public class ProductoVentaService {
         validateSameSucursal(relacion.getVenta().getSucursal() == null ? null : relacion.getVenta().getSucursal().getId());
         validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
 
-        int diferencia = cantidad - relacion.getCantidad();
+        if (isZero(cantidad)) {
+            ajustarStock(relacion.getProducto(), -relacion.getCantidad());
+            productoVentaRepository.delete(relacion);
+            return new ProductoVentaDTO(ventaId, productoId, 0D);
+        }
+
+        double diferencia = cantidad - relacion.getCantidad();
 
         ajustarStock(relacion.getProducto(), diferencia);
 
@@ -178,7 +207,7 @@ public class ProductoVentaService {
                 .toList();
     }
 
-    private void ajustarStock(Producto producto, int diferenciaVenta) {
+    private void ajustarStock(Producto producto, double diferenciaVenta) {
         if (diferenciaVenta == 0) {
             return;
         }
@@ -187,18 +216,9 @@ public class ProductoVentaService {
 
         producto.setCantidad(producto.getCantidad() - diferenciaVenta);
 
-        List<MateriaPrima_Productos> materiasRelacionadas = materiaPrimaProductoRepository
-                .findAllByProducto_Id(producto.getId());
-
-        for (MateriaPrima_Productos relacionMateria : materiasRelacionadas) {
-            double ajuste = relacionMateria.getCantidad() * (double) diferenciaVenta;
-            relacionMateria.getMateriaPrima().setCantidad(
-                    relacionMateria.getMateriaPrima().getCantidad() - ajuste
-            );
-        }
     }
 
-    private void validarStockDisponible(Producto producto, int diferenciaVenta) {
+    private void validarStockDisponible(Producto producto, double diferenciaVenta) {
         if (diferenciaVenta <= 0) {
             return;
         }
@@ -209,29 +229,19 @@ public class ProductoVentaService {
             );
         }
 
-        List<MateriaPrima_Productos> materiasRelacionadas = materiaPrimaProductoRepository
-                .findAllByProducto_Id(producto.getId());
-
-        for (MateriaPrima_Productos relacionMateria : materiasRelacionadas) {
-            double requerido = relacionMateria.getCantidad() * (double) diferenciaVenta;
-            double disponible = relacionMateria.getMateriaPrima().getCantidad();
-
-            if (disponible < requerido) {
-                throw new BadRequestException(
-                        "Stock insuficiente de materia prima '" + relacionMateria.getMateriaPrima().getNombre()
-                                + "'. Disponible: " + disponible + ", requerido: " + requerido
-                );
-            }
-        }
     }
 
-    private void validateCantidad(Integer cantidad) {
+    private void validateCantidad(Double cantidad) {
         if (cantidad == null) {
             throw new BadRequestException("La cantidad no puede ser nula");
         }
         if (cantidad < 0) {
             throw new BadRequestException("La cantidad debe ser mayor o igual a 0");
         }
+    }
+
+    private boolean isZero(Double cantidad) {
+        return Double.compare(cantidad, 0D) == 0;
     }
 
     private void validateVentaId(Long ventaId) {

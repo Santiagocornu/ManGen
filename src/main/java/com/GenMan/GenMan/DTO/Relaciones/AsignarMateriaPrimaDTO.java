@@ -11,5 +11,5 @@ import lombok.NoArgsConstructor;
 public class AsignarMateriaPrimaDTO {
     @JsonAlias({"id", "materia_prima_id"})
     private Long materiaPrimaId;
-    private Integer cantidad;
+    private Double cantidad;
 }

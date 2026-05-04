@@ -31,7 +31,7 @@ public class MateriaPrima_Productos {
     private Producto producto;
 
     @Column(nullable = false)
-    private Integer cantidad;
+    private double cantidad;
 
     // Clase para clave compuesta PK
     @Data

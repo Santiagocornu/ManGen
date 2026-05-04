@@ -85,12 +85,24 @@ public class MateriaPrimaService {
         return materiaPrimaProductoService.obtenerProductosPorMateriaPrima(materiaPrimaId);
     }
 
-    public MateriaPrimaProductosDTO saveOrUpdateProducto(Long materiaPrimaId, Long productoId, Integer cantidad) {
+    @Transactional
+    public MateriaPrimaProductosDTO saveOrUpdateProducto(Long materiaPrimaId, Long productoId, Double cantidad) {
         return materiaPrimaProductoService.crearOActualizar(materiaPrimaId, productoId, cantidad);
     }
 
-    public MateriaPrimaProductosDTO cambiarCantidadProducto(Long materiaPrimaId, Long productoId, Integer cantidad) {
+    @Transactional
+    public MateriaPrimaProductosDTO saveOrUpdateProductoConStock(Long materiaPrimaId, Long productoId, Double cantidad) {
+        return materiaPrimaProductoService.crearOActualizarConStock(materiaPrimaId, productoId, cantidad);
+    }
+
+    @Transactional
+    public MateriaPrimaProductosDTO cambiarCantidadProducto(Long materiaPrimaId, Long productoId, Double cantidad) {
         return materiaPrimaProductoService.cambiarCantidad(materiaPrimaId, productoId, cantidad);
+    }
+
+    @Transactional
+    public MateriaPrimaProductosDTO cambiarCantidadProductoConStock(Long materiaPrimaId, Long productoId, Double cantidad) {
+        return materiaPrimaProductoService.cambiarCantidadConStock(materiaPrimaId, productoId, cantidad);
     }
 
     private void validate(MateriaPrimaDTO materiaPrimaDTO) {

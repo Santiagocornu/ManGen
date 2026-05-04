@@ -66,6 +66,15 @@ public class MateriaPrimaController {
                 .body(materiaPrimaService.saveOrUpdateProducto(id, asignarProductoDTO.getProductoId(), asignarProductoDTO.getCantidad()));
     }
 
+    @PostMapping("/{id}/productos/con-stock")
+    public ResponseEntity<MateriaPrimaProductosDTO> addProductoToMateriaPrimaConStock(
+            @PathVariable Long id,
+            @RequestBody AsignarProductoDTO asignarProductoDTO
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(materiaPrimaService.saveOrUpdateProductoConStock(id, asignarProductoDTO.getProductoId(), asignarProductoDTO.getCantidad()));
+    }
+
     @PatchMapping("/{id}/productos/{productoId}/cantidad")
     public ResponseEntity<MateriaPrimaProductosDTO> cambiarCantidadProducto(
             @PathVariable Long id,
@@ -73,5 +82,14 @@ public class MateriaPrimaController {
             @RequestBody AsignarProductoDTO asignarProductoDTO
     ) {
         return ResponseEntity.ok(materiaPrimaService.cambiarCantidadProducto(id, productoId, asignarProductoDTO.getCantidad()));
+    }
+
+    @PatchMapping("/{id}/productos/{productoId}/cantidad/con-stock")
+    public ResponseEntity<MateriaPrimaProductosDTO> cambiarCantidadProductoConStock(
+            @PathVariable Long id,
+            @PathVariable Long productoId,
+            @RequestBody AsignarProductoDTO asignarProductoDTO
+    ) {
+        return ResponseEntity.ok(materiaPrimaService.cambiarCantidadProductoConStock(id, productoId, asignarProductoDTO.getCantidad()));
     }
 }

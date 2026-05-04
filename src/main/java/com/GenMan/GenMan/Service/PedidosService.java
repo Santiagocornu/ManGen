@@ -84,11 +84,13 @@ public class PedidosService {
         return productoPedidosService.obtenerProductosPorPedido(pedidoId);
     }
 
-    public ProductoPedidosDTO saveOrUpdateProducto(Long pedidoId, Long productoId, Integer cantidad) {
+    @Transactional
+    public ProductoPedidosDTO saveOrUpdateProducto(Long pedidoId, Long productoId, Double cantidad) {
         return productoPedidosService.crearOActualizar(pedidoId, productoId, cantidad);
     }
 
-    public ProductoPedidosDTO cambiarCantidadProducto(Long pedidoId, Long productoId, Integer cantidad) {
+    @Transactional
+    public ProductoPedidosDTO cambiarCantidadProducto(Long pedidoId, Long productoId, Double cantidad) {
         return productoPedidosService.cambiarCantidad(pedidoId, productoId, cantidad);
     }
 

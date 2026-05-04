@@ -35,7 +35,7 @@ public class ProductoPedidosService {
     }
 
     @Transactional
-    public ProductoPedidosDTO crearOActualizar(Long pedidoId, Long productoId, Integer cantidad) {
+    public ProductoPedidosDTO crearOActualizar(Long pedidoId, Long productoId, Double cantidad) {
         validatePedidoId(pedidoId);
         validateProductoId(productoId);
         validateCantidad(cantidad);
@@ -48,14 +48,27 @@ public class ProductoPedidosService {
 
         Producto_Pedidos relacion = productoPedidosRepository
                 .findByPedidos_IdAndProducto_Id(pedidoId, productoId)
-                .orElse(new Producto_Pedidos(pedido, producto, cantidad));
+                .orElse(null);
+
+        if (isZero(cantidad)) {
+            if (relacion != null) {
+                validateSameSucursal(relacion.getPedidos().getSucursal() == null ? null : relacion.getPedidos().getSucursal().getId());
+                validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+                productoPedidosRepository.delete(relacion);
+            }
+            return new ProductoPedidosDTO(pedidoId, productoId, 0D);
+        }
+
+        if (relacion == null) {
+            relacion = new Producto_Pedidos(pedido, producto, cantidad);
+        }
 
         relacion.setCantidad(cantidad);
         return toDto(productoPedidosRepository.save(relacion));
     }
 
     @Transactional
-    public ProductoPedidosDTO cambiarCantidad(Long pedidoId, Long productoId, Integer cantidad) {
+    public ProductoPedidosDTO cambiarCantidad(Long pedidoId, Long productoId, Double cantidad) {
         validatePedidoId(pedidoId);
         validateProductoId(productoId);
         validateCantidad(cantidad);
@@ -66,6 +79,11 @@ public class ProductoPedidosService {
 
         validateSameSucursal(relacion.getPedidos().getSucursal() == null ? null : relacion.getPedidos().getSucursal().getId());
         validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+
+        if (isZero(cantidad)) {
+            productoPedidosRepository.delete(relacion);
+            return new ProductoPedidosDTO(pedidoId, productoId, 0D);
+        }
 
         relacion.setCantidad(cantidad);
         return toDto(productoPedidosRepository.save(relacion));
@@ -91,13 +109,17 @@ public class ProductoPedidosService {
                 .toList();
     }
 
-    private void validateCantidad(Integer cantidad) {
+    private void validateCantidad(Double cantidad) {
         if (cantidad == null) {
             throw new BadRequestException("La cantidad no puede ser nula");
         }
         if (cantidad < 0) {
             throw new BadRequestException("La cantidad debe ser mayor o igual a 0");
         }
+    }
+
+    private boolean isZero(Double cantidad) {
+        return Double.compare(cantidad, 0D) == 0;
     }
 
     private void validatePedidoId(Long pedidoId) {

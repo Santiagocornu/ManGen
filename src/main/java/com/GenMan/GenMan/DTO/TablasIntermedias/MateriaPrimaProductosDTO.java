@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 public class MateriaPrimaProductosDTO {
     private Long materiaPrimaId;
     private Long productoId;
-    private Integer cantidad;
+    private Double cantidad;
 }

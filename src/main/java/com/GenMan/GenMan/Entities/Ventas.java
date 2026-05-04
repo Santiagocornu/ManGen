@@ -2,10 +2,11 @@ package com.GenMan.GenMan.Entities;
 
 
 import com.GenMan.GenMan.Entities.TablasIntermedias.Producto_Venta;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.text.DateFormat;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,7 +33,8 @@ public class Ventas {
     String MetodoPago;
 
     @Column
-    DateFormat Fecha;
+    @JsonFormat(pattern = "dd/MM/yyyy")
+    LocalDate Fecha;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sucursal_id")

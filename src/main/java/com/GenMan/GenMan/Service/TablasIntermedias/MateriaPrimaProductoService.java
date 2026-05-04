@@ -36,7 +36,7 @@ public class MateriaPrimaProductoService {
     }
 
     @Transactional
-    public MateriaPrimaProductosDTO crearOActualizar(Long materiaPrimaId, Long productoId, Integer cantidad) {
+    public MateriaPrimaProductosDTO crearOActualizar(Long materiaPrimaId, Long productoId, Double cantidad) {
         validateMateriaPrimaId(materiaPrimaId);
         validateProductoId(productoId);
         validateCantidad(cantidad);
@@ -49,14 +49,69 @@ public class MateriaPrimaProductoService {
 
         MateriaPrima_Productos relacion = materiaPrimaProductoRepository
                 .findByMateriaPrima_IdAndProducto_Id(materiaPrimaId, productoId)
-                .orElse(new MateriaPrima_Productos(materiaPrima, producto, cantidad));
+                .orElse(null);
+
+        if (isZero(cantidad)) {
+            if (relacion != null) {
+                validateSameSucursal(relacion.getMateriaPrima().getSucursal() == null ? null : relacion.getMateriaPrima().getSucursal().getId());
+                validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+                materiaPrimaProductoRepository.delete(relacion);
+            }
+            return new MateriaPrimaProductosDTO(materiaPrimaId, productoId, 0D);
+        }
+
+        if (relacion == null) {
+            relacion = new MateriaPrima_Productos(materiaPrima, producto, cantidad);
+        }
 
         relacion.setCantidad(cantidad);
         return toDto(materiaPrimaProductoRepository.save(relacion));
     }
 
     @Transactional
-    public MateriaPrimaProductosDTO cambiarCantidad(Long materiaPrimaId, Long productoId, Integer cantidad) {
+    public MateriaPrimaProductosDTO crearOActualizarConStock(Long materiaPrimaId, Long productoId, Double cantidad) {
+        validateMateriaPrimaId(materiaPrimaId);
+        validateProductoId(productoId);
+        validateCantidad(cantidad);
+
+        MateriaPrima materiaPrima = materiaPrimaRepository.findByIdAndSucursal_Id(materiaPrimaId, currentSucursalId())
+                .orElseThrow(() -> new ResourceNotFoundException("Materia prima no encontrada con id: " + materiaPrimaId));
+
+        Producto producto = productoRepository.findByIdAndSucursal_Id(productoId, currentSucursalId())
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id: " + productoId));
+
+        MateriaPrima_Productos relacion = materiaPrimaProductoRepository
+                .findByMateriaPrima_IdAndProducto_Id(materiaPrimaId, productoId)
+                .orElse(null);
+
+        if (isZero(cantidad)) {
+            if (relacion != null) {
+                validateSameSucursal(relacion.getMateriaPrima().getSucursal() == null ? null : relacion.getMateriaPrima().getSucursal().getId());
+                validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+                ajustarStockMateriaPrima(relacion.getMateriaPrima(), -relacion.getCantidad());
+                materiaPrimaProductoRepository.delete(relacion);
+            }
+            return new MateriaPrimaProductosDTO(materiaPrimaId, productoId, 0D);
+        }
+
+        double cantidadAnterior = relacion == null ? 0D : relacion.getCantidad();
+        double diferencia = cantidad - cantidadAnterior;
+
+        ajustarStockMateriaPrima(materiaPrima, diferencia);
+
+        if (relacion == null) {
+            relacion = new MateriaPrima_Productos(materiaPrima, producto, cantidad);
+        } else {
+            validateSameSucursal(relacion.getMateriaPrima().getSucursal() == null ? null : relacion.getMateriaPrima().getSucursal().getId());
+            validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+            relacion.setCantidad(cantidad);
+        }
+
+        return toDto(materiaPrimaProductoRepository.save(relacion));
+    }
+
+    @Transactional
+    public MateriaPrimaProductosDTO cambiarCantidad(Long materiaPrimaId, Long productoId, Double cantidad) {
         validateMateriaPrimaId(materiaPrimaId);
         validateProductoId(productoId);
         validateCantidad(cantidad);
@@ -68,6 +123,39 @@ public class MateriaPrimaProductoService {
 
         validateSameSucursal(relacion.getMateriaPrima().getSucursal() == null ? null : relacion.getMateriaPrima().getSucursal().getId());
         validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+
+        if (isZero(cantidad)) {
+            materiaPrimaProductoRepository.delete(relacion);
+            return new MateriaPrimaProductosDTO(materiaPrimaId, productoId, 0D);
+        }
+
+        relacion.setCantidad(cantidad);
+        return toDto(materiaPrimaProductoRepository.save(relacion));
+    }
+
+    @Transactional
+    public MateriaPrimaProductosDTO cambiarCantidadConStock(Long materiaPrimaId, Long productoId, Double cantidad) {
+        validateMateriaPrimaId(materiaPrimaId);
+        validateProductoId(productoId);
+        validateCantidad(cantidad);
+
+        MateriaPrima_Productos relacion = materiaPrimaProductoRepository
+                .findByMateriaPrima_IdAndProducto_Id(materiaPrimaId, productoId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No existe relacion entre materia prima " + materiaPrimaId + " y producto " + productoId));
+
+        validateSameSucursal(relacion.getMateriaPrima().getSucursal() == null ? null : relacion.getMateriaPrima().getSucursal().getId());
+        validateSameSucursal(relacion.getProducto().getSucursal() == null ? null : relacion.getProducto().getSucursal().getId());
+
+        if (isZero(cantidad)) {
+            ajustarStockMateriaPrima(relacion.getMateriaPrima(), -relacion.getCantidad());
+            materiaPrimaProductoRepository.delete(relacion);
+            return new MateriaPrimaProductosDTO(materiaPrimaId, productoId, 0D);
+        }
+
+        double diferencia = cantidad - relacion.getCantidad();
+
+        ajustarStockMateriaPrima(relacion.getMateriaPrima(), diferencia);
 
         relacion.setCantidad(cantidad);
         return toDto(materiaPrimaProductoRepository.save(relacion));
@@ -113,13 +201,32 @@ public class MateriaPrimaProductoService {
                 .toList();
     }
 
-    private void validateCantidad(Integer cantidad) {
+    private void validateCantidad(Double cantidad) {
         if (cantidad == null) {
             throw new BadRequestException("La cantidad no puede ser nula");
         }
         if (cantidad < 0) {
             throw new BadRequestException("La cantidad debe ser mayor o igual a 0");
         }
+    }
+
+    private boolean isZero(Double cantidad) {
+        return Double.compare(cantidad, 0D) == 0;
+    }
+
+    private void ajustarStockMateriaPrima(MateriaPrima materiaPrima, double diferenciaRelacion) {
+        if (diferenciaRelacion == 0) {
+            return;
+        }
+
+        if (diferenciaRelacion > 0 && materiaPrima.getCantidad() < diferenciaRelacion) {
+            throw new BadRequestException(
+                    "Stock insuficiente de materia prima. Disponible: " + materiaPrima.getCantidad()
+                            + ", requerido: " + diferenciaRelacion
+            );
+        }
+
+        materiaPrima.setCantidad(materiaPrima.getCantidad() - diferenciaRelacion);
     }
 
     private void validateMateriaPrimaId(Long materiaPrimaId) {
