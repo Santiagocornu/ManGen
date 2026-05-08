@@ -15,6 +15,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "Sucursal")
 @Getter
@@ -35,4 +37,9 @@ public class Sucursal {
     @JoinColumn(name = "creador_user_id")
     @EqualsAndHashCode.Exclude
     private User creador;
+
+    @Column(nullable = false)
+    private Boolean estaPago = false;
+
+    private LocalDateTime ultimaFechaPago;
 }

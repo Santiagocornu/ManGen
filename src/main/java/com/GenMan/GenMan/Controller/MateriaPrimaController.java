@@ -1,9 +1,12 @@
 package com.GenMan.GenMan.Controller;
 
 import com.GenMan.GenMan.DTO.MateriaPrimaDTO;
+import com.GenMan.GenMan.DTO.Relaciones.AsignarMateriaPrimaProveedorDTO;
 import com.GenMan.GenMan.DTO.Relaciones.AsignarProductoDTO;
 import com.GenMan.GenMan.DTO.Relaciones.ProductoCantidadDTO;
+import com.GenMan.GenMan.DTO.Relaciones.ProveedorMateriaPrimaDTO;
 import com.GenMan.GenMan.DTO.TablasIntermedias.MateriaPrimaProductosDTO;
+import com.GenMan.GenMan.DTO.TablasIntermedias.MateriaPrimaProveedorDTO;
 import com.GenMan.GenMan.Service.MateriaPrimaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -91,5 +94,47 @@ public class MateriaPrimaController {
             @RequestBody AsignarProductoDTO asignarProductoDTO
     ) {
         return ResponseEntity.ok(materiaPrimaService.cambiarCantidadProductoConStock(id, productoId, asignarProductoDTO.getCantidad()));
+    }
+
+    @GetMapping("/{id}/proveedores")
+    public ResponseEntity<List<ProveedorMateriaPrimaDTO>> getProveedoresByMateriaPrima(@PathVariable Long id) {
+        return ResponseEntity.ok(materiaPrimaService.getProveedores(id));
+    }
+
+    @PostMapping("/{id}/proveedores")
+    public ResponseEntity<MateriaPrimaProveedorDTO> addProveedorToMateriaPrima(
+            @PathVariable Long id,
+            @RequestBody AsignarMateriaPrimaProveedorDTO asignarMateriaPrimaProveedorDTO
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(materiaPrimaService.saveOrUpdateProveedor(
+                        id,
+                        asignarMateriaPrimaProveedorDTO.getProveedorId(),
+                        asignarMateriaPrimaProveedorDTO.getMarca(),
+                        asignarMateriaPrimaProveedorDTO.getPrecio()
+                ));
+    }
+
+    @PatchMapping("/{id}/proveedores/{proveedorId}/oferta")
+    public ResponseEntity<MateriaPrimaProveedorDTO> cambiarOfertaProveedor(
+            @PathVariable Long id,
+            @PathVariable Long proveedorId,
+            @RequestBody AsignarMateriaPrimaProveedorDTO asignarMateriaPrimaProveedorDTO
+    ) {
+        return ResponseEntity.ok(materiaPrimaService.cambiarOfertaProveedor(
+                id,
+                proveedorId,
+                asignarMateriaPrimaProveedorDTO.getMarca(),
+                asignarMateriaPrimaProveedorDTO.getPrecio()
+        ));
+    }
+
+    @DeleteMapping("/{id}/proveedores/{proveedorId}")
+    public ResponseEntity<Void> deleteProveedorFromMateriaPrima(
+            @PathVariable Long id,
+            @PathVariable Long proveedorId
+    ) {
+        materiaPrimaService.eliminarProveedor(id, proveedorId);
+        return ResponseEntity.noContent().build();
     }
 }

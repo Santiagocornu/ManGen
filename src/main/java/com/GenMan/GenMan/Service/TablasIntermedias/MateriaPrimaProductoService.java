@@ -193,7 +193,6 @@ public class MateriaPrimaProductoService {
                         relacion.getMateriaPrima().getId(),
                         relacion.getMateriaPrima().getNombre(),
                         relacion.getMateriaPrima().getAsset(),
-                        relacion.getMateriaPrima().getPrecio(),
                         relacion.getMateriaPrima().getUnidad(),
                         relacion.getMateriaPrima().getCantidad(),
                         relacion.getCantidad()

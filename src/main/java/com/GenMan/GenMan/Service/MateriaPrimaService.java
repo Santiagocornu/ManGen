@@ -2,7 +2,9 @@ package com.GenMan.GenMan.Service;
 
 import com.GenMan.GenMan.DTO.MateriaPrimaDTO;
 import com.GenMan.GenMan.DTO.Relaciones.ProductoCantidadDTO;
+import com.GenMan.GenMan.DTO.Relaciones.ProveedorMateriaPrimaDTO;
 import com.GenMan.GenMan.DTO.TablasIntermedias.MateriaPrimaProductosDTO;
+import com.GenMan.GenMan.DTO.TablasIntermedias.MateriaPrimaProveedorDTO;
 import com.GenMan.GenMan.Entities.MateriaPrima;
 import com.GenMan.GenMan.Entities.Sucursal;
 import com.GenMan.GenMan.Exceptions.BadRequestException;
@@ -11,6 +13,7 @@ import com.GenMan.GenMan.Repository.MateriaPrimaRepository;
 import com.GenMan.GenMan.Repository.SucursalRepository;
 import com.GenMan.GenMan.Security.SucursalContext;
 import com.GenMan.GenMan.Service.TablasIntermedias.MateriaPrimaProductoService;
+import com.GenMan.GenMan.Service.TablasIntermedias.MateriaPrimaProveedorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,16 +27,19 @@ public class MateriaPrimaService {
     private final MateriaPrimaRepository materiaPrimaRepository;
     private final SucursalRepository sucursalRepository;
     private final MateriaPrimaProductoService materiaPrimaProductoService;
+    private final MateriaPrimaProveedorService materiaPrimaProveedorService;
 
     @Autowired
     public MateriaPrimaService(
             MateriaPrimaRepository materiaPrimaRepository,
             SucursalRepository sucursalRepository,
-            MateriaPrimaProductoService materiaPrimaProductoService
+            MateriaPrimaProductoService materiaPrimaProductoService,
+            MateriaPrimaProveedorService materiaPrimaProveedorService
     ) {
         this.materiaPrimaRepository = materiaPrimaRepository;
         this.sucursalRepository = sucursalRepository;
         this.materiaPrimaProductoService = materiaPrimaProductoService;
+        this.materiaPrimaProveedorService = materiaPrimaProveedorService;
     }
 
     public List<MateriaPrimaDTO> findAll() {
@@ -66,7 +72,6 @@ public class MateriaPrimaService {
 
         materiaPrimaExistente.setAsset(materiaPrimaDTO.getAsset());
         materiaPrimaExistente.setNombre(materiaPrimaDTO.getNombre());
-        materiaPrimaExistente.setPrecio(materiaPrimaDTO.getPrecio());
         materiaPrimaExistente.setCantidad(materiaPrimaDTO.getCantidad());
         materiaPrimaExistente.setUnidad(materiaPrimaDTO.getUnidad());
 
@@ -105,13 +110,26 @@ public class MateriaPrimaService {
         return materiaPrimaProductoService.cambiarCantidadConStock(materiaPrimaId, productoId, cantidad);
     }
 
+    public List<ProveedorMateriaPrimaDTO> getProveedores(Long materiaPrimaId) {
+        return materiaPrimaProveedorService.obtenerProveedoresPorMateriaPrima(materiaPrimaId);
+    }
+
+    @Transactional
+    public MateriaPrimaProveedorDTO saveOrUpdateProveedor(Long materiaPrimaId, Long proveedorId, String marca, Double precio) {
+        return materiaPrimaProveedorService.crearOActualizar(materiaPrimaId, proveedorId, marca, precio);
+    }
+
+    @Transactional
+    public MateriaPrimaProveedorDTO cambiarOfertaProveedor(Long materiaPrimaId, Long proveedorId, String marca, Double precio) {
+        return materiaPrimaProveedorService.cambiarOferta(materiaPrimaId, proveedorId, marca, precio);
+    }
+
+    @Transactional
+    public void eliminarProveedor(Long materiaPrimaId, Long proveedorId) {
+        materiaPrimaProveedorService.eliminarRelacion(materiaPrimaId, proveedorId);
+    }
+
     private void validate(MateriaPrimaDTO materiaPrimaDTO) {
-        if (materiaPrimaDTO.getPrecio() == null) {
-            throw new BadRequestException("Debe tener precio");
-        }
-        if (materiaPrimaDTO.getPrecio() < 0) {
-            throw new BadRequestException("El precio debe ser mayor o igual a 0");
-        }
         if (materiaPrimaDTO.getCantidad() == null) {
             throw new BadRequestException("La cantidad no puede ser nula");
         }
@@ -128,7 +146,6 @@ public class MateriaPrimaService {
                 materiaPrima.getId(),
                 materiaPrima.getAsset(),
                 materiaPrima.getNombre(),
-                materiaPrima.getPrecio(),
                 materiaPrima.getUnidad(),
                 materiaPrima.getCantidad()
         );
@@ -139,7 +156,6 @@ public class MateriaPrimaService {
         materiaPrima.setId(materiaPrimaDTO.getId());
         materiaPrima.setAsset(materiaPrimaDTO.getAsset());
         materiaPrima.setNombre(materiaPrimaDTO.getNombre());
-        materiaPrima.setPrecio(materiaPrimaDTO.getPrecio());
         materiaPrima.setUnidad(materiaPrimaDTO.getUnidad());
         materiaPrima.setCantidad(materiaPrimaDTO.getCantidad());
         return materiaPrima;

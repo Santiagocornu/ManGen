@@ -14,4 +14,5 @@ public class BackfillResultDTO {
     private int productosActualizados;
     private int pedidosActualizados;
     private int ventasActualizadas;
+    private int proveedoresActualizados;
 }

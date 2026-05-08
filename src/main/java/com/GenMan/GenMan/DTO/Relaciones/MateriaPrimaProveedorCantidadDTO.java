@@ -7,11 +7,12 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MateriaPrimaCantidadDTO {
+public class MateriaPrimaProveedorCantidadDTO {
     private Long materiaPrimaId;
     private String nombre;
     private String asset;
     private String unidad;
     private Double cantidadDisponible;
-    private Double cantidadRelacionada;
+    private String marca;
+    private Double precio;
 }

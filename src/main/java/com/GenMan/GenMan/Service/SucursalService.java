@@ -7,6 +7,7 @@ import com.GenMan.GenMan.DTO.UserDTO;
 import com.GenMan.GenMan.Entities.MateriaPrima;
 import com.GenMan.GenMan.Entities.Pedidos;
 import com.GenMan.GenMan.Entities.Producto;
+import com.GenMan.GenMan.Entities.Proveedor;
 import com.GenMan.GenMan.Entities.Sucursal;
 import com.GenMan.GenMan.Entities.User;
 import com.GenMan.GenMan.Entities.Ventas;
@@ -15,6 +16,7 @@ import com.GenMan.GenMan.Exceptions.ResourceNotFoundException;
 import com.GenMan.GenMan.Repository.MateriaPrimaRepository;
 import com.GenMan.GenMan.Repository.PedidosRepository;
 import com.GenMan.GenMan.Repository.ProductoRepository;
+import com.GenMan.GenMan.Repository.ProveedorRepository;
 import com.GenMan.GenMan.Repository.SucursalRepository;
 import com.GenMan.GenMan.Repository.UserRepository;
 import com.GenMan.GenMan.Repository.VentasRepository;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -34,6 +37,7 @@ public class SucursalService {
     private final UserRepository userRepository;
     private final MateriaPrimaRepository materiaPrimaRepository;
     private final ProductoRepository productoRepository;
+    private final ProveedorRepository proveedorRepository;
     private final PedidosRepository pedidosRepository;
     private final VentasRepository ventasRepository;
 
@@ -42,6 +46,7 @@ public class SucursalService {
             UserRepository userRepository,
             MateriaPrimaRepository materiaPrimaRepository,
             ProductoRepository productoRepository,
+            ProveedorRepository proveedorRepository,
             PedidosRepository pedidosRepository,
             VentasRepository ventasRepository
     ) {
@@ -49,12 +54,20 @@ public class SucursalService {
         this.userRepository = userRepository;
         this.materiaPrimaRepository = materiaPrimaRepository;
         this.productoRepository = productoRepository;
+        this.proveedorRepository = proveedorRepository;
         this.pedidosRepository = pedidosRepository;
         this.ventasRepository = ventasRepository;
     }
 
     public List<SucursalDTO> findAll() {
         return List.of(toDto(currentSucursal()));
+    }
+
+    public List<SucursalDTO> findAllForGestion() {
+        return sucursalRepository.findAll()
+                .stream()
+                .map(this::toDto)
+                .toList();
     }
 
     public SucursalDTO findById(Long id) {
@@ -127,6 +140,10 @@ public class SucursalService {
         productos.forEach(producto -> producto.setSucursal(sucursal));
         productoRepository.saveAll(productos);
 
+        List<Proveedor> proveedores = proveedorRepository.findAllBySucursalIsNull();
+        proveedores.forEach(proveedor -> proveedor.setSucursal(sucursal));
+        proveedorRepository.saveAll(proveedores);
+
         List<Pedidos> pedidos = pedidosRepository.findAllBySucursalIsNull();
         pedidos.forEach(pedido -> pedido.setSucursal(sucursal));
         pedidosRepository.saveAll(pedidos);
@@ -141,8 +158,30 @@ public class SucursalService {
                 materiasPrimas.size(),
                 productos.size(),
                 pedidos.size(),
-                ventas.size()
+                ventas.size(),
+                proveedores.size()
         );
+    }
+
+    @Transactional
+    public SucursalDTO marcarComoPago(Long sucursalId) {
+        Sucursal sucursal = sucursalRepository.findById(sucursalId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + sucursalId));
+
+        sucursal.setEstaPago(true);
+        sucursal.setUltimaFechaPago(LocalDateTime.now());
+
+        return toDto(sucursalRepository.save(sucursal));
+    }
+
+    @Transactional
+    public SucursalDTO marcarComoNoPago(Long sucursalId) {
+        Sucursal sucursal = sucursalRepository.findById(sucursalId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada con id: " + sucursalId));
+
+        sucursal.setEstaPago(false);
+
+        return toDto(sucursalRepository.save(sucursal));
     }
 
     private void validateNombre(String nombre, Long currentId) {
@@ -185,7 +224,9 @@ public class SucursalService {
         return new SucursalDTO(
                 sucursal.getId(),
                 sucursal.getNombre(),
-                sucursal.getCreador() == null ? null : sucursal.getCreador().getId()
+                sucursal.getCreador() == null ? null : sucursal.getCreador().getId(),
+                sucursal.getEstaPago(),
+                sucursal.getUltimaFechaPago()
         );
     }
 

@@ -7,10 +7,10 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class MateriaPrimaDTO {
+public class ProveedorDTO {
     private Long id;
-    private String asset;
     private String nombre;
-    private String unidad;
-    private Double cantidad;
+    private String email;
+    private String numeroTelefono;
+    private String descripcion;
 }

@@ -1,6 +1,7 @@
 package com.GenMan.GenMan.Entities;
 
 import com.GenMan.GenMan.Entities.TablasIntermedias.MateriaPrima_Productos;
+import com.GenMan.GenMan.Entities.TablasIntermedias.MateriaPrima_Proveedores;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,9 +27,6 @@ public class MateriaPrima {
     String Nombre;
 
     @Column(nullable = false)
-    Double Precio;
-
-    @Column(nullable = false)
     String Unidad;
 
     @Column(nullable = false)
@@ -42,4 +40,9 @@ public class MateriaPrima {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<MateriaPrima_Productos> productos = new ArrayList<>();
+
+    @OneToMany(mappedBy = "materiaPrima", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<MateriaPrima_Proveedores> proveedores = new ArrayList<>();
 }

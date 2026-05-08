@@ -11,4 +11,6 @@ public class SucursalDTO {
     private Long id;
     private String nombre;
     private Long creadorUserId;
+    private Boolean estaPago;
+    private java.time.LocalDateTime ultimaFechaPago;
 }

@@ -25,6 +25,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/auth/register-sucursal-admin").permitAll()
+                        .requestMatchers("/auth/pagar-sucursal").permitAll()
+                        .requestMatchers("/auth/desactivar-pago-sucursal").permitAll()
+                        .requestMatchers("/auth/sucursales").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/apiManGen/Sucursal/**").hasRole("ADMIN")
                         .requestMatchers("/apiManGen/User/**").hasRole("ADMIN")
