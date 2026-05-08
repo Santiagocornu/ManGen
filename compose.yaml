@@ -1,0 +1,33 @@
+services:
+  server:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - MYSQL_URL=jdbc:mysql://db:3306/ManGen?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - key=Alta_en_el_cielo.un.águila-guerrera-Audaz_se.eleva-en_vuelo.triunfal-Azul_un.ala-del_color.del-cielo-Azul_un.ala-del_color.del-mar-Así_en.el-alta_aurora.irradial-punta_de.flecha-el_áureo.rostro-imita-Y_forma.estela-al_purpurado.cuello-El_ala-es.paño-el_águila.es-bandera-Es_la.bandera-de_la.patria-mía_del.sol-nacida_que.me-ha.dado-Dios-Es_la.bandera-de_la.patria-mía-Del_sol.nacida-que_me.ha-dado-Dios-Es_la.bandera-de_la.patria-mía_del.sol-nacida_que.me-ha.dado-dios
+
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: ManGen
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data:
