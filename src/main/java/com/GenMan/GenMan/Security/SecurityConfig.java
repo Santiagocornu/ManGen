@@ -1,5 +1,9 @@
 package com.GenMan.GenMan.Security;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,6 +13,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 public class SecurityConfig {
+
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final JwtFilter jwtFilter;
 
@@ -37,8 +43,40 @@ public class SecurityConfig {
                         .requestMatchers("/apiManGen/User/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            logger.warn("Solicitud rechazada: autenticacion requerida. ip={}, metodo={}, url={}, motivo={}",
+                                    getClientIp(request), request.getMethod(), getFullUrl(request), authException.getMessage());
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "No autenticado");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            logger.warn("Solicitud rechazada: permisos insuficientes. ip={}, metodo={}, url={}, motivo={}",
+                                    getClientIp(request), request.getMethod(), getFullUrl(request), accessDeniedException.getMessage());
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN, "No autorizado");
+                        })
+                )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    private static String getFullUrl(HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        if (queryString == null || queryString.isBlank()) {
+            return request.getRequestURI();
+        }
+        return request.getRequestURI() + "?" + queryString;
+    }
+
+    private static String getClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp;
+        }
+        return request.getRemoteAddr();
     }
 }

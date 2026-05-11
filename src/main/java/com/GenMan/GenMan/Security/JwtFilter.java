@@ -12,6 +12,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -20,6 +22,8 @@ import java.util.List;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtFilter.class);
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
@@ -56,6 +60,8 @@ public class JwtFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
 
         if (header == null || !header.startsWith("Bearer ")) {
+            logger.warn("Solicitud rechazada por token faltante o invalido. ip={}, metodo={}, url={}",
+                    getClientIp(request), request.getMethod(), getFullUrl(request));
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token faltante o invalido");
             return;
         }
@@ -78,6 +84,8 @@ public class JwtFilter extends OncePerRequestFilter {
                     .orElseThrow(() -> new RuntimeException("Sucursal del token no encontrada"));
 
             if (!Boolean.TRUE.equals(sucursal.getEstaPago())) {
+                logger.warn("Solicitud rechazada por falta de pago. ip={}, metodo={}, url={}, userId={}, sucursalId={}",
+                        getClientIp(request), request.getMethod(), getFullUrl(request), userId, sucursalId);
                 response.setStatus(HttpServletResponse.SC_PAYMENT_REQUIRED);
                 response.setContentType("text/plain;charset=UTF-8");
                 response.getWriter().write("falta de pago");
@@ -102,11 +110,33 @@ public class JwtFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } catch (Exception ex) {
             SecurityContextHolder.clearContext();
+            logger.warn("Solicitud rechazada por token invalido o usuario no autorizado. ip={}, metodo={}, url={}, motivo={}",
+                    getClientIp(request), request.getMethod(), getFullUrl(request), ex.getMessage());
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token invalido o usuario no autorizado");
         } finally {
             SucursalContext.clear();
             AuthenticatedUserContext.clear();
             SecurityContextHolder.clearContext();
         }
+    }
+
+    private String getFullUrl(HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        if (queryString == null || queryString.isBlank()) {
+            return request.getRequestURI();
+        }
+        return request.getRequestURI() + "?" + queryString;
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp;
+        }
+        return request.getRemoteAddr();
     }
 }
