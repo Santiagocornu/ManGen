@@ -17,9 +17,11 @@ public class SecurityConfig {
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final JwtFilter jwtFilter;
+    private final AntiSpamFilter antiSpamFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter) {
+    public SecurityConfig(JwtFilter jwtFilter, AntiSpamFilter antiSpamFilter) {
         this.jwtFilter = jwtFilter;
+        this.antiSpamFilter = antiSpamFilter;
     }
 
     @Bean
@@ -55,6 +57,7 @@ public class SecurityConfig {
                             response.sendError(HttpServletResponse.SC_FORBIDDEN, "No autorizado");
                         })
                 )
+                .addFilterBefore(antiSpamFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

@@ -1,117 +1,291 @@
 # GenMan API
 
-API REST para gestionar:
+GenMan es una API REST para administrar la operacion de una sucursal: materias primas, productos, proveedores, pedidos, ventas, usuarios y control de stock. Esta construida con Spring Boot, Spring Security, JWT y JPA.
 
-- Materias primas
-- Productos
-- Pedidos
-- Ventas
-- Usuarios
-- Sucursales
-- Relaciones entre esas entidades
-- Autenticacion JWT
+La aplicacion esta pensada para trabajar con multiples sucursales. Cada usuario pertenece a una sucursal y, al autenticarse, el token JWT define sobre que sucursal puede operar. Los datos de negocio quedan aislados por sucursal.
 
-## Base URL
+## Funcionalidades principales
 
-La aplicacion corre por defecto en:
+- Autenticacion con JWT.
+- Registro inicial de una sucursal con usuario administrador.
+- Gestion de usuarios por sucursal.
+- Gestion de materias primas, productos y proveedores.
+- Relacion entre productos y materias primas, con cantidades.
+- Relacion entre proveedores y materias primas, con marca y precio ofertado.
+- Gestion de pedidos y productos incluidos.
+- Gestion de ventas.
+- Creacion de ventas desde pedidos.
+- Ajuste de stock al operar ventas o relaciones marcadas `con-stock`.
+- Validacion de pago de sucursal antes de permitir el uso de endpoints protegidos.
+- Filtro anti spam configurable para rechazar solicitudes identicas en una ventana corta.
+- Swagger UI para explorar la API.
+
+## Stack
+
+- Java 17
+- Spring Boot 4
+- Spring Web
+- Spring Security
+- Spring Data JPA
+- JWT con `jjwt`
+- MySQL o PostgreSQL, segun la URL configurada
+- Maven Wrapper
+
+## Requisitos
+
+- JDK 17 instalado y `JAVA_HOME` configurado.
+- Base de datos disponible.
+- Variables de entorno configuradas en `.env` o en el entorno del sistema.
+
+Variables esperadas:
+
+```properties
+MYSQL_URL=jdbc:mysql://localhost:3306/ManGen
+MYSQL_USER=root
+MYSQL_PASSWORD=1234
+APP_SECRET=una_clave_segura
+```
+
+El archivo `src/main/resources/application.properties` importa automaticamente `.env`:
+
+```properties
+spring.config.import=optional:file:.env[.properties]
+```
+
+## Ejecutar localmente
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+La API levanta por defecto en:
 
 ```text
 http://localhost:8080
 ```
 
-Prefijo comun de la API:
-
-```text
-http://localhost:8080/apiManGen
-```
-
-## Requisitos
-
-- Java 17
-- Maven Wrapper incluido en el proyecto
-- MySQL corriendo localmente
-
-Configuracion actual en `src/main/resources/application.properties`:
-
-- Puerto: `8080`
-- Base de datos: `ManGen`
-- Usuario: `root`
-- Password: `1234`
-
-## Levantar el proyecto
-
-```powershell
-./mvnw.cmd spring-boot:run
-```
-
-## Documentacion Swagger
-
-Si la aplicacion esta levantada, la UI de Swagger suele quedar disponible en:
+Swagger queda disponible en:
 
 ```text
 http://localhost:8080/swagger-ui/index.html
 ```
 
-## Autenticacion
+## Seguridad
 
-La API usa JWT.
-
-- `POST /auth/login` es publico.
-- El resto de los endpoints requieren `Authorization: Bearer <token>`.
-- En cada request protegida, el backend valida la firma del token, extrae el `userId` y el `sucursal_id` del JWT y comprueba que ese usuario exista en la base local.
-- Cada usuario solo puede ver y modificar datos de su propia sucursal.
-- Los endpoints de `User` y `Sucursal` solo pueden ser usados por usuarios con rol `ADMIN`.
-- Si falta el token, es invalido o el usuario ya no existe, responde `401 Unauthorized`.
-
-Formato del header:
+La API usa JWT en los endpoints protegidos:
 
 ```text
-Authorization: Bearer eyJhbGciOi...
+Authorization: Bearer TU_TOKEN
 ```
 
-## Multi-sucursal
+Endpoints publicos:
 
-El proyecto funciona con aislamiento logico por `Sucursal`.
+- `POST /auth/login`
+- `POST /auth/register-sucursal-admin`
+- `POST /auth/pagar-sucursal`
+- `POST /auth/desactivar-pago-sucursal`
+- `GET /auth/sucursales`
+- Swagger y OpenAPI
 
-- Cada `User` pertenece a una sucursal.
-- `MateriaPrima`, `Producto`, `Pedidos` y `Ventas` tambien pertenecen a una sucursal.
-- El token lleva el `sucursal_id`.
-- Todos los services consultan y modifican solo los datos de la sucursal del token.
-- Un admin puede crear y administrar usuarios de su misma sucursal.
+Los endpoints de negocio requieren token valido. Ademas:
 
-## Formato de errores
+- `/apiManGen/Sucursal/**` requiere rol `ADMIN`.
+- `/apiManGen/User/**` requiere rol `ADMIN`.
+- El usuario solo accede a datos de su propia sucursal.
+- Si la sucursal no esta marcada como paga, la API responde `402 Payment Required`.
 
-Cuando ocurre un error, la API responde con este formato:
+## Primer uso
+
+1. Crear una sucursal con su administrador:
+
+```http
+POST /auth/register-sucursal-admin
+Content-Type: application/json
+```
 
 ```json
 {
-  "status": 400,
-  "error": "Bad Request",
-  "message": "El total no puede ser nulo",
-  "timestamp": "2026-04-25T22:35:12.123"
+  "nombreSucursal": "Sucursal Centro",
+  "nombreAdmin": "Admin Centro",
+  "emailAdmin": "admin@centro.com",
+  "passwordAdmin": "1234"
 }
 ```
 
-## Modelos principales
+2. Usar el `token` de la respuesta para las solicitudes protegidas.
 
-### MateriaPrimaDTO
+3. Crear usuarios, productos, materias primas, proveedores, pedidos y ventas desde los endpoints `/apiManGen`.
+
+## Login
+
+```http
+POST /auth/login
+Content-Type: application/json
+```
 
 ```json
 {
-  "id": 1,
-  "asset": "harina.png",
-  "nombre": "Harina",
-  "precio": 1200.0,
-  "unidad": "kg",
-  "cantidad": 25.0
+  "email": "admin@centro.com",
+  "password": "1234",
+  "sucursalId": 1
 }
 ```
 
-### ProductoDTO
+Respuesta:
 
 ```json
 {
-  "id": 1,
+  "token": "jwt...",
+  "user": {
+    "id": 1,
+    "nombre": "Admin Centro",
+    "email": "admin@centro.com",
+    "roll": "ADMIN",
+    "sucursalId": 1
+  }
+}
+```
+
+## Endpoints principales
+
+Base de negocio:
+
+```text
+/apiManGen
+```
+
+### Auth
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| `POST` | `/auth/login` | Inicia sesion y devuelve JWT |
+| `POST` | `/auth/register-sucursal-admin` | Crea sucursal y admin inicial |
+| `POST` | `/auth/change-password` | Cambia la contrasena de un usuario |
+| `POST` | `/auth/pagar-sucursal` | Marca una sucursal como paga usando `Key` |
+| `POST` | `/auth/desactivar-pago-sucursal` | Desactiva el pago de una sucursal |
+| `GET` | `/auth/sucursales` | Lista sucursales para gestion externa usando `Key` |
+
+### Sucursales
+
+Base: `/apiManGen/Sucursal`
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| `GET` | `/` | Lista sucursales |
+| `POST` | `/` | Crea sucursal |
+| `GET` | `/{id}` | Obtiene sucursal |
+| `PUT` | `/{id}` | Actualiza sucursal |
+| `DELETE` | `/{id}` | Elimina sucursal |
+| `POST` | `/{id}/backfill` | Asigna sucursal a datos antiguos sin `sucursal_id` |
+
+### Usuarios
+
+Base: `/apiManGen/User`
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| `GET` | `/` | Lista usuarios de la sucursal |
+| `POST` | `/` | Crea usuario en la sucursal del admin |
+| `GET` | `/{id}` | Obtiene usuario |
+| `PUT` | `/{id}` | Actualiza usuario |
+| `DELETE` | `/{id}` | Elimina usuario |
+
+### Materias primas
+
+Base: `/apiManGen/Materia_prima`
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| `GET` | `/` | Lista materias primas |
+| `POST` | `/` | Crea materia prima |
+| `GET` | `/{id}` | Obtiene materia prima |
+| `PUT` | `/{id}` | Actualiza materia prima |
+| `DELETE` | `/{id}` | Elimina materia prima |
+| `GET` | `/{id}/productos` | Lista productos relacionados |
+| `POST` | `/{id}/productos` | Relaciona producto |
+| `POST` | `/{id}/productos/con-stock` | Relaciona producto ajustando stock |
+| `PATCH` | `/{id}/productos/{productoId}/cantidad` | Cambia cantidad relacionada |
+| `PATCH` | `/{id}/productos/{productoId}/cantidad/con-stock` | Cambia cantidad ajustando stock |
+| `GET` | `/{id}/proveedores` | Lista proveedores relacionados |
+| `POST` | `/{id}/proveedores` | Relaciona proveedor con marca y precio |
+| `PATCH` | `/{id}/proveedores/{proveedorId}/oferta` | Cambia oferta del proveedor |
+| `DELETE` | `/{id}/proveedores/{proveedorId}` | Elimina relacion con proveedor |
+
+### Productos
+
+Base: `/apiManGen/Producto`
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| `GET` | `/` | Lista productos |
+| `POST` | `/` | Crea producto |
+| `GET` | `/{id}` | Obtiene producto |
+| `PUT` | `/{id}` | Actualiza producto |
+| `DELETE` | `/{id}` | Elimina producto |
+| `GET` | `/{id}/materias-primas` | Lista materias primas relacionadas |
+| `POST` | `/{id}/materias-primas` | Relaciona materia prima |
+| `POST` | `/{id}/materias-primas/con-stock` | Relaciona materia prima ajustando stock |
+| `PATCH` | `/{id}/materias-primas/{materiaPrimaId}/cantidad` | Cambia cantidad relacionada |
+| `PATCH` | `/{id}/materias-primas/{materiaPrimaId}/cantidad/con-stock` | Cambia cantidad ajustando stock |
+
+### Proveedores
+
+Base: `/apiManGen/Proveedor`
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| `GET` | `/` | Lista proveedores |
+| `POST` | `/` | Crea proveedor |
+| `GET` | `/{id}` | Obtiene proveedor |
+| `PUT` | `/{id}` | Actualiza proveedor |
+| `DELETE` | `/{id}` | Elimina proveedor |
+| `GET` | `/{id}/materias-primas` | Lista materias primas ofrecidas |
+| `POST` | `/{id}/materias-primas` | Relaciona materia prima con marca y precio |
+| `PATCH` | `/{id}/materias-primas/{materiaPrimaId}/oferta` | Cambia oferta |
+| `DELETE` | `/{id}/materias-primas/{materiaPrimaId}` | Elimina relacion |
+
+### Pedidos
+
+Base: `/apiManGen/Pedidos`
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| `GET` | `/` | Lista pedidos |
+| `POST` | `/` | Crea pedido |
+| `GET` | `/{id}` | Obtiene pedido |
+| `PUT` | `/{id}` | Actualiza pedido |
+| `DELETE` | `/{id}` | Elimina pedido |
+| `GET` | `/{id}/productos` | Lista productos del pedido |
+| `POST` | `/{id}/productos` | Agrega o actualiza producto del pedido |
+| `PATCH` | `/{id}/productos/{productoId}/cantidad` | Cambia cantidad del producto |
+
+### Ventas
+
+Base: `/apiManGen/Ventas`
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| `GET` | `/` | Lista ventas |
+| `POST` | `/` | Crea venta |
+| `POST` | `/desde-pedido/{pedidoId}` | Crea venta desde pedido |
+| `POST` | `/desde-pedido/{pedidoId}/con-stock` | Crea venta desde pedido y descuenta stock |
+| `GET` | `/{id}` | Obtiene venta |
+| `PUT` | `/{id}` | Actualiza venta |
+| `DELETE` | `/{id}` | Elimina venta |
+| `GET` | `/{id}/productos` | Lista productos vendidos |
+| `POST` | `/{id}/productos` | Agrega o actualiza producto |
+| `POST` | `/{id}/productos/con-stock` | Agrega producto y descuenta stock |
+| `PATCH` | `/{id}/productos/{productoId}/cantidad` | Cambia cantidad |
+| `PATCH` | `/{id}/productos/{productoId}/cantidad/con-stock` | Cambia cantidad ajustando stock |
+| `DELETE` | `/{id}/productos/{productoId}` | Elimina producto de la venta |
+| `DELETE` | `/{id}/productos/{productoId}/con-stock` | Elimina producto y repone stock |
+
+## Ejemplos de cuerpos JSON
+
+Crear producto:
+
+```json
+{
   "asset": "pan.png",
   "nombre": "Pan",
   "precio": 800.0,
@@ -120,113 +294,19 @@ Cuando ocurre un error, la API responde con este formato:
 }
 ```
 
-### PedidosDTO
+Crear materia prima:
 
 ```json
 {
-  "id": 1,
-  "total": 5000.0,
-  "totalDesc": 4500.0,
-  "descripcion": "Pedido para cliente mayorista",
-  "estado": "Pendiente"
+  "asset": "harina.png",
+  "nombre": "Harina",
+  "precio": 1200.0,
+  "unidad": "kg",
+  "cantidad": 25.0
 }
 ```
 
-### VentasDTO
-
-```json
-{
-  "id": 1,
-  "total": 5000.0,
-  "totalDesc": 4500.0,
-  "metodoPago": "Efectivo",
-  "fecha": null
-}
-```
-
-### UserDTO
-
-```json
-{
-  "id": 1,
-  "nombre": "Juan",
-  "fechaCreacion": "2026-04-26T00:00:00.000+00:00",
-  "email": "juan@mail.com",
-  "roll": "ADMIN",
-  "sucursalId": 1
-}
-```
-
-La contraseña no se devuelve en ninguna respuesta.
-
-### SucursalDTO
-
-```json
-{
-  "id": 1,
-  "nombre": "Arcor"
-}
-```
-
-### LoginRequestDTO
-
-```json
-{
-  "email": "juan@mail.com",
-  "password": "1234"
-}
-```
-
-### LoginResponseDTO
-
-```json
-{
-  "token": "jwt...",
-  "user": {
-    "id": 1,
-    "nombre": "Juan",
-    "fechaCreacion": "2026-04-26T00:00:00.000+00:00",
-    "email": "juan@mail.com",
-    "roll": "ADMIN",
-    "sucursalId": 1
-  }
-}
-```
-
-### BackfillResultDTO
-
-```json
-{
-  "sucursalId": 1,
-  "usuariosActualizados": 3,
-  "materiasPrimasActualizadas": 12,
-  "productosActualizados": 8,
-  "pedidosActualizados": 4,
-  "ventasActualizadas": 5
-}
-```
-
-### DTOs de relaciones
-
-Asignar producto:
-
-```json
-{
-  "productoId": 1,
-  "cantidad": 3
-}
-```
-
-Tambien se acepta `id` o `producto_id` en lugar de `productoId`:
-
-```json
-{
-  "id": 1,
-  "cantidad": 3
-}
-```
-
-Asignar materia prima:
+Relacionar producto con materia prima:
 
 ```json
 {
@@ -235,696 +315,94 @@ Asignar materia prima:
 }
 ```
 
-Tambien se acepta `id` o `materia_prima_id` en lugar de `materiaPrimaId`:
+Relacionar venta o pedido con producto:
 
 ```json
 {
-  "id": 1,
-  "cantidad": 2
+  "productoId": 1,
+  "cantidad": 3
 }
 ```
 
-Regla importante: todos los IDs usados en una relacion tienen que pertenecer a la misma sucursal del token JWT.
-
-## Endpoints
-
-## Auth
-
-Base path: `/auth`
-
-### `POST /auth/login`
-
-Inicia sesion con email y contraseña y devuelve un JWT mas los datos del usuario autenticado.
-
-Body:
+Relacionar proveedor con materia prima:
 
 ```json
 {
-  "email": "juan@mail.com",
-  "password": "1234"
+  "materiaPrimaId": 1,
+  "proveedorId": 2,
+  "marca": "Molino Norte",
+  "precio": 950.0
 }
 ```
 
-Respuesta:
+## Anti spam
 
-```json
-{
-  "token": "jwt...",
-  "user": {
-    "id": 1,
-    "nombre": "Juan",
-    "fechaCreacion": "2026-04-26T00:00:00.000+00:00",
-    "email": "juan@mail.com",
-    "roll": "ADMIN",
-    "sucursalId": 1
-  }
-}
-```
-
-### `POST /auth/register-sucursal-admin`
-
-Endpoint publico para alta inicial desde frontend.
-
-Crea:
-
-- una sucursal nueva
-- un usuario admin para esa sucursal
-- un JWT listo para usar
-
-Body:
-
-```json
-{
-  "nombreSucursal": "Arcor",
-  "nombreAdmin": "Admin Arcor",
-  "emailAdmin": "admin@arcor.com",
-  "passwordAdmin": "1234"
-}
-```
-
-Respuesta:
-
-```json
-{
-  "token": "jwt...",
-  "sucursal": {
-    "id": 1,
-    "nombre": "Arcor"
-  },
-  "user": {
-    "id": 1,
-    "nombre": "Admin Arcor",
-    "fechaCreacion": "2026-04-26T00:00:00.000+00:00",
-    "email": "admin@arcor.com",
-    "roll": "ADMIN",
-    "sucursalId": 1
-  }
-}
-```
-
-### `POST /auth/change-password`
-
-Cambia la contraseña del usuario dentro de su misma sucursal.
-
-Requiere token.
-
-Parametros:
-
-- `email`
-- `password`
-- `newPassword`
-
-Ejemplo:
+La API incluye un filtro anti spam para evitar que dos solicitudes identicas lleguen en milisegundos y se procesen dos veces. Si una request repite la misma firma dentro de la ventana configurada, responde:
 
 ```text
-POST /auth/change-password?email=juan@mail.com&password=1234&newPassword=abcd1234
+429 Too Many Requests
 ```
 
-## Sucursal
+Configuracion:
 
-Base path: `/apiManGen/Sucursal`
+```properties
+app.anti-spam.enabled=true
+app.anti-spam.window-ms=500
+app.anti-spam.max-entries=10000
+```
 
-Todos los endpoints de sucursal requieren token y rol `ADMIN`.
+## Errores
 
-### `GET /apiManGen/Sucursal`
-
-Lista todas las sucursales.
-
-### `POST /apiManGen/Sucursal`
-
-Crea una sucursal.
-
-Body:
+Los errores de negocio se devuelven con un formato consistente:
 
 ```json
 {
-  "nombre": "Arcor"
+  "status": 400,
+  "error": "Bad Request",
+  "message": "El total no puede ser nulo",
+  "timestamp": "2026-05-20T10:30:00"
 }
 ```
 
-### `GET /apiManGen/Sucursal/{id}`
+Codigos comunes:
 
-Obtiene una sucursal por id.
+| Codigo | Significado |
+| --- | --- |
+| `200` | Operacion correcta |
+| `201` | Recurso creado |
+| `204` | Recurso eliminado |
+| `400` | Datos invalidos |
+| `401` | Falta token o el token no es valido |
+| `402` | Sucursal sin pago activo |
+| `403` | Sin permisos |
+| `404` | Recurso no encontrado |
+| `429` | Solicitud duplicada o spam |
+| `500` | Error interno |
 
-### `PUT /apiManGen/Sucursal/{id}`
+## Comandos utiles
 
-Actualiza una sucursal.
+Ejecutar la app:
 
-Body:
-
-```json
-{
-  "nombre": "Arcor Norte"
-}
+```powershell
+.\mvnw.cmd spring-boot:run
 ```
 
-### `DELETE /apiManGen/Sucursal/{id}`
+Ejecutar tests:
 
-Elimina una sucursal vacia.
-
-Si la sucursal tiene usuarios o datos asociados, responde error.
-
-### `POST /apiManGen/Sucursal/{id}/backfill`
-
-Asigna esa sucursal a datos viejos que todavia no tengan `sucursal_id`.
-
-Actualiza:
-
-- usuarios sin sucursal
-- materias primas sin sucursal
-- productos sin sucursal
-- pedidos sin sucursal
-- ventas sin sucursal
-
-Respuesta:
-
-```json
-{
-  "sucursalId": 1,
-  "usuariosActualizados": 3,
-  "materiasPrimasActualizadas": 12,
-  "productosActualizados": 8,
-  "pedidosActualizados": 4,
-  "ventasActualizadas": 5
-}
+```powershell
+.\mvnw.cmd test
 ```
 
-## User
+Compilar:
 
-Base path: `/apiManGen/User`
-
-Todos los endpoints de usuario requieren token y rol `ADMIN`.
-
-Los usuarios creados desde esta API quedan asociados automaticamente a la misma sucursal del admin autenticado.
-
-### `GET /apiManGen/User`
-
-Lista todos los usuarios de la misma sucursal del admin autenticado.
-
-### `POST /apiManGen/User`
-
-Crea un usuario dentro de la sucursal del admin autenticado.
-
-Body:
-
-```json
-{
-  "nombre": "Juan",
-  "fechaCreacion": "2026-04-26T00:00:00.000+00:00",
-  "email": "juan@mail.com",
-  "password": "1234",
-  "roll": "ADMIN"
-}
+```powershell
+.\mvnw.cmd clean package
 ```
 
-No hace falta mandar `sucursalId`: el backend usa la sucursal del token.
-
-### `GET /apiManGen/User/{id}`
-
-Obtiene un usuario por id dentro de la misma sucursal del admin autenticado.
-
-### `PUT /apiManGen/User/{id}`
-
-Actualiza un usuario dentro de la misma sucursal del admin autenticado.
-
-Body:
-
-```json
-{
-  "nombre": "Juan Perez",
-  "fechaCreacion": "2026-04-26T00:00:00.000+00:00",
-  "email": "juan@mail.com",
-  "password": "nueva1234",
-  "roll": "ADMIN"
-}
-```
-
-### `DELETE /apiManGen/User/{id}`
-
-Elimina un usuario dentro de la misma sucursal del admin autenticado.
-
-## Materia prima
-
-Base path: `/apiManGen/Materia_prima`
-
-Todos los endpoints requieren token y operan solo sobre la sucursal del usuario autenticado.
-
-### `GET /apiManGen/Materia_prima`
-
-Lista todas las materias primas de la sucursal actual.
-
-### `POST /apiManGen/Materia_prima`
-
-Crea una materia prima en la sucursal actual.
-
-### `GET /apiManGen/Materia_prima/{id}`
-
-Obtiene una materia prima por id de la sucursal actual.
-
-### `PUT /apiManGen/Materia_prima/{id}`
-
-Actualiza una materia prima de la sucursal actual.
-
-### `DELETE /apiManGen/Materia_prima/{id}`
-
-Elimina una materia prima de la sucursal actual.
-
-### `GET /apiManGen/Materia_prima/{id}/productos`
-
-Devuelve los productos asociados a una materia prima de la sucursal actual.
-
-### `POST /apiManGen/Materia_prima/{id}/productos`
-
-Asocia un producto a una materia prima de la misma sucursal.
-
-En este endpoint, `{id}` es el id de la materia prima. El producto va en el body.
-
-Body recomendado:
-
-```json
-{
-  "productoId": 102,
-  "cantidad": 2
-}
-```
-
-Body alternativo valido:
-
-```json
-{
-  "id": 102,
-  "cantidad": 2
-}
-```
-
-### `PATCH /apiManGen/Materia_prima/{id}/productos/{productoId}/cantidad`
-
-Cambia la cantidad de la relacion entre materia prima y producto.
-
-En este endpoint, `{id}` es el id de la materia prima y `{productoId}` es el id del producto.
-
-Body:
-
-```json
-{
-  "cantidad": 5
-}
-```
-
-## Producto
-
-Base path: `/apiManGen/Producto`
-
-Todos los endpoints requieren token y operan solo sobre la sucursal del usuario autenticado.
-
-### `GET /apiManGen/Producto`
-
-Lista todos los productos de la sucursal actual.
-
-### `POST /apiManGen/Producto`
-
-Crea un producto en la sucursal actual.
-
-### `GET /apiManGen/Producto/{id}`
-
-Obtiene un producto por id de la sucursal actual.
-
-### `PUT /apiManGen/Producto/{id}`
-
-Actualiza un producto de la sucursal actual.
-
-### `DELETE /apiManGen/Producto/{id}`
-
-Elimina un producto de la sucursal actual.
-
-### `GET /apiManGen/Producto/{id}/materias-primas`
-
-Devuelve las materias primas asociadas a un producto de la sucursal actual.
-
-### `POST /apiManGen/Producto/{id}/materias-primas`
-
-Asocia una materia prima al producto dentro de la misma sucursal.
-
-En este endpoint, `{id}` es el id del producto. La materia prima va en el body.
-
-Body recomendado:
-
-```json
-{
-  "materiaPrimaId": 52,
-  "cantidad": 2
-}
-```
-
-Body alternativo valido:
-
-```json
-{
-  "id": 52,
-  "cantidad": 2
-}
-```
-
-### `PATCH /apiManGen/Producto/{id}/materias-primas/{materiaPrimaId}/cantidad`
-
-Cambia la cantidad de la relacion entre producto y materia prima.
-
-En este endpoint, `{id}` es el id del producto y `{materiaPrimaId}` es el id de la materia prima.
-
-Body:
-
-```json
-{
-  "cantidad": 5
-}
-```
-
-## Pedidos
-
-Base path: `/apiManGen/Pedidos`
-
-Todos los endpoints requieren token y operan solo sobre la sucursal del usuario autenticado.
-
-### `GET /apiManGen/Pedidos`
-
-Lista todos los pedidos de la sucursal actual.
-
-### `POST /apiManGen/Pedidos`
-
-Crea un pedido en la sucursal actual.
-
-### `GET /apiManGen/Pedidos/{id}`
-
-Obtiene un pedido por id de la sucursal actual.
-
-### `PUT /apiManGen/Pedidos/{id}`
-
-Actualiza un pedido de la sucursal actual.
-
-### `DELETE /apiManGen/Pedidos/{id}`
-
-Elimina un pedido de la sucursal actual.
-
-### `GET /apiManGen/Pedidos/{id}/productos`
-
-Devuelve los productos asociados a un pedido de la sucursal actual.
-
-### `POST /apiManGen/Pedidos/{id}/productos`
-
-Asocia un producto a un pedido dentro de la misma sucursal.
-
-En este endpoint, `{id}` es el id del pedido. El producto va en el body.
-
-Body recomendado:
-
-```json
-{
-  "productoId": 102,
-  "cantidad": 2
-}
-```
-
-Body alternativo valido:
-
-```json
-{
-  "id": 102,
-  "cantidad": 2
-}
-```
-
-### `PATCH /apiManGen/Pedidos/{id}/productos/{productoId}/cantidad`
-
-Cambia la cantidad de la relacion entre pedido y producto.
-
-En este endpoint, `{id}` es el id del pedido y `{productoId}` es el id del producto.
-
-Body:
-
-```json
-{
-  "cantidad": 5
-}
-```
-
-## Ventas
-
-Base path: `/apiManGen/Ventas`
-
-Todos los endpoints requieren token y operan solo sobre la sucursal del usuario autenticado.
-
-### `GET /apiManGen/Ventas`
-
-Lista todas las ventas de la sucursal actual.
-
-### `POST /apiManGen/Ventas`
-
-Crea una venta en la sucursal actual.
-
-### `POST /apiManGen/Ventas/desde-pedido/{pedidoId}`
-
-Crea una venta a partir de un pedido existente de la sucursal actual y marca el pedido como `Terminado`.
-
-### `POST /apiManGen/Ventas/desde-pedido/{pedidoId}/con-stock`
-
-Crea una venta a partir de un pedido existente de la sucursal actual, marca el pedido como `Terminado` y descuenta stock.
-
-### `GET /apiManGen/Ventas/{id}`
-
-Obtiene una venta por id de la sucursal actual.
-
-### `PUT /apiManGen/Ventas/{id}`
-
-Actualiza una venta de la sucursal actual.
-
-### `DELETE /apiManGen/Ventas/{id}`
-
-Elimina una venta de la sucursal actual.
-
-### `GET /apiManGen/Ventas/{id}/productos`
-
-Devuelve los productos asociados a una venta de la sucursal actual.
-
-### `POST /apiManGen/Ventas/{id}/productos`
-
-Asocia un producto a una venta de la misma sucursal.
-
-En este endpoint, `{id}` es el id de la venta. El producto va en el body.
-
-Body recomendado:
-
-```json
-{
-  "productoId": 102,
-  "cantidad": 2
-}
-```
-
-Body alternativo valido:
-
-```json
-{
-  "id": 102,
-  "cantidad": 2
-}
-```
-
-### `POST /apiManGen/Ventas/{id}/productos/con-stock`
-
-Asocia un producto a una venta de la misma sucursal ajustando stock.
-
-Usa el mismo body que `POST /apiManGen/Ventas/{id}/productos`, pero ademas descuenta stock del producto y sus materias primas relacionadas.
-
-### `PATCH /apiManGen/Ventas/{id}/productos/{productoId}/cantidad`
-
-Cambia la cantidad de la relacion entre venta y producto.
-
-En este endpoint, `{id}` es el id de la venta y `{productoId}` es el id del producto.
-
-Body:
-
-```json
-{
-  "cantidad": 5
-}
-```
-
-### `PATCH /apiManGen/Ventas/{id}/productos/{productoId}/cantidad/con-stock`
-
-Cambia la cantidad ajustando stock.
-
-### `DELETE /apiManGen/Ventas/{id}/productos/{productoId}`
-
-Elimina la relacion entre venta y producto sin tocar stock.
-
-### `DELETE /apiManGen/Ventas/{id}/productos/{productoId}/con-stock`
-
-Elimina la relacion entre venta y producto y repone stock.
-
-## Codigos de estado mas comunes
-
-- `200 OK`: consulta o actualizacion correcta
-- `201 Created`: recurso creado correctamente
-- `204 No Content`: recurso eliminado correctamente
-- `400 Bad Request`: datos invalidos o validaciones de negocio
-- `401 Unauthorized`: token faltante o invalido
-- `403 Forbidden`: el usuario no tiene permisos para el recurso
-- `404 Not Found`: recurso no encontrado
-- `500 Internal Server Error`: error interno del servidor
-
-## Ejemplos con curl
-
-Login:
-
-```bash
-curl -X POST http://localhost:8080/auth/login \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"juan@mail.com\",\"password\":\"1234\"}"
-```
-
-Registro inicial de sucursal con admin:
-
-```bash
-curl -X POST http://localhost:8080/auth/register-sucursal-admin \
-  -H "Content-Type: application/json" \
-  -d "{\"nombreSucursal\":\"Arcor\",\"nombreAdmin\":\"Admin Arcor\",\"emailAdmin\":\"admin@arcor.com\",\"passwordAdmin\":\"1234\"}"
-```
-
-Crear sucursal con token de admin:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Sucursal \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN_ADMIN" \
-  -d "{\"nombre\":\"Arcor\"}"
-```
-
-Crear usuario desde un admin de sucursal:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/User \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN_ADMIN" \
-  -d "{\"nombre\":\"Operador 1\",\"fechaCreacion\":\"2026-04-26T00:00:00.000+00:00\",\"email\":\"op1@arcor.com\",\"password\":\"1234\",\"roll\":\"USER\"}"
-```
-
-Backfill de datos viejos sin sucursal:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Sucursal/1/backfill \
-  -H "Authorization: Bearer TU_TOKEN_ADMIN"
-```
-
-Crear producto con token:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Producto \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"asset\":\"pan.png\",\"nombre\":\"Pan\",\"precio\":800.0,\"cantidad\":12.0,\"unidad\":\"unidad\"}"
-```
-
-Obtener materias primas de un producto:
-
-```bash
-curl http://localhost:8080/apiManGen/Producto/1/materias-primas \
-  -H "Authorization: Bearer TU_TOKEN"
-```
-
-Relacionar materia prima con producto desde materia prima:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Materia_prima/52/productos \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"productoId\":102,\"cantidad\":2}"
-```
-
-Relacionar materia prima con producto usando `id` en el body:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Materia_prima/52/productos \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"id\":102,\"cantidad\":2}"
-```
-
-Relacionar producto con materia prima desde producto:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Producto/102/materias-primas \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"materiaPrimaId\":52,\"cantidad\":2}"
-```
-
-Relacionar pedido con producto:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Pedidos/1/productos \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"productoId\":102,\"cantidad\":2}"
-```
-
-Relacionar venta con producto:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Ventas/1/productos \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"productoId\":102,\"cantidad\":2}"
-```
-
-Relacionar venta con producto ajustando stock:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Ventas/1/productos/con-stock \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"productoId\":102,\"cantidad\":2}"
-```
-
-Cambiar cantidad de una relacion materia prima-producto:
-
-```bash
-curl -X PATCH http://localhost:8080/apiManGen/Materia_prima/52/productos/102/cantidad \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"cantidad\":5}"
-```
-
-Cambiar cantidad de una relacion producto-materia prima:
-
-```bash
-curl -X PATCH http://localhost:8080/apiManGen/Producto/102/materias-primas/52/cantidad \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"cantidad\":5}"
-```
-
-Cambiar cantidad de una relacion pedido-producto:
-
-```bash
-curl -X PATCH http://localhost:8080/apiManGen/Pedidos/1/productos/102/cantidad \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"cantidad\":5}"
-```
-
-Cambiar cantidad de una relacion venta-producto:
-
-```bash
-curl -X PATCH http://localhost:8080/apiManGen/Ventas/1/productos/102/cantidad \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -d "{\"cantidad\":5}"
-```
-
-Crear venta desde pedido:
-
-```bash
-curl -X POST http://localhost:8080/apiManGen/Ventas/desde-pedido/1 \
-  -H "Authorization: Bearer TU_TOKEN"
-```
-
+## Notas de desarrollo
+
+- Los endpoints protegidos dependen de `JwtFilter`.
+- El contexto de sucursal se toma del token y se guarda durante la request.
+- Los services son responsables de filtrar y validar datos por sucursal.
+- Las relaciones entre entidades validan que los IDs pertenezcan a la misma sucursal.
+- La documentacion interactiva se genera con Springdoc OpenAPI.
