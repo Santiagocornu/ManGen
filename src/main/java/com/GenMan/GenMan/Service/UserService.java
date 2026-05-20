@@ -11,6 +11,7 @@ import com.GenMan.GenMan.Security.AuthenticatedUser;
 import com.GenMan.GenMan.Security.AuthenticatedUserContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -100,10 +101,16 @@ public class UserService {
         User userExistente = userRepository.findByIdAndSucursal_Id(id, currentSucursalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + id));
 
+        if (isSucursalCreator(userExistente) && !"ADMIN".equalsIgnoreCase(user.getRoll())) {
+            throw new BadRequestException("El usuario creador no puede cambiar de roll");
+        }
+
         userExistente.setNombre(user.getNombre());
         userExistente.setFechaCreacion(user.getFechaCreacion());
         userExistente.setEmail(user.getEmail());
-        userExistente.setPassword(user.getPassword());
+        if (StringUtils.hasText(user.getPassword())) {
+            userExistente.setPassword(user.getPassword());
+        }
         userExistente.setRoll(user.getRoll());
         userExistente.setSucursal(resolveSucursalForManagedUser(user));
         validateUniqueEmailInSucursal(userExistente.getEmail(), userExistente.getSucursal().getId(), userExistente.getId());
